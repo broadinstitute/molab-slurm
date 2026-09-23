@@ -62,3 +62,7 @@ PYTHONPATH=src python -m molab_slurm --help
 
 See [docs/how-it-works.md](docs/how-it-works.md) for the design and
 [docs/differences.md](docs/differences.md) for what differs from SLURM.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
