@@ -50,7 +50,7 @@ Later lines override earlier ones; command-line options override all of them.
 | `SLURM_JOB_NAME` | `--job-name` |
 | `SLURM_SUBMIT_DIR` | the working directory (there is no separate submit host) |
 | `SLURM_CPUS_PER_TASK`, `SLURM_CPUS_ON_NODE` | `--cpus-per-task`, else the box's configured CPUs |
-| `OMP_NUM_THREADS` | the same, unless already set |
+| `OMP_NUM_THREADS`, `NUMBA_NUM_THREADS` | the same, unless already set — thread pools otherwise size themselves to the host's cores |
 | `SLURM_JOB_PARTITION` | `molab` |
 | `SLURM_JOB_NODELIST`, `SLURMD_NODENAME`, `SLURM_SUBMIT_HOST` | the box's host name |
 | `SLURM_NTASKS`, `SLURM_NNODES` | `1` |
