@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "molab-slurm"
+dynamic = ["version"]
+description = "SLURM's commands (sbatch, squeue, scancel, ...) for a molab box you cannot ssh into"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []  # stdlib only, on the laptop and on the box
+authors = [{ name = "Eugenio Mattei" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Environment :: Console",
+    "Topic :: System :: Distributed Computing",
+]
+
+[project.scripts]
+molab = "molab_slurm.cli:entry"
+
+[project.urls]
+Documentation = "https://broadinstitute.github.io/molab-slurm/"
+Source = "https://github.com/broadinstitute/molab-slurm"
+
+[tool.setuptools.dynamic]
+version = { attr = "molab_slurm.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 110
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

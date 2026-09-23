@@ -1,0 +1,14 @@
+title: molab-slurm
+description: SLURM's commands for a molab box you cannot ssh into
+remote_theme: just-the-docs/just-the-docs@v0.10.1
+plugins:
+  - jekyll-remote-theme
+baseurl: /molab-slurm
+url: https://broadinstitute.github.io
+color_scheme: light
+search_enabled: true
+heading_anchors: true
+aux_links:
+  GitHub: https://github.com/broadinstitute/molab-slurm
+aux_links_new_tab: true
+footer_content: "molab-slurm is not affiliated with SchedMD or marimo."
