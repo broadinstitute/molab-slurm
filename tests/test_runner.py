@@ -5,7 +5,6 @@ box.SUBMIT would (a job directory with job.json) and runs the runner on it."""
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 import time

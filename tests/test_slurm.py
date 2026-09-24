@@ -53,18 +53,17 @@ def test_format_elapsed():
 
 
 def test_directives_stop_at_first_command_and_later_lines_win():
-    script = "\n".join(
-        [
-            "#!/bin/bash",
-            "#SBATCH --job-name=first",
-            "# an ordinary comment keeps the block open",
-            "",
-            "#SBATCH -J second --array=0-19  # trailing comment",
-            "#SBATCH --mem=100G",
-            "echo hi",
-            "#SBATCH --time=5:00  (after a command: ignored, as sbatch does)",
-        ]
-    )
+    lines = [
+        "#!/bin/bash",
+        "#SBATCH --job-name=first",
+        "# an ordinary comment keeps the block open",
+        "",
+        "#SBATCH -J second --array=0-19  # trailing comment",
+        "#SBATCH --mem=100G",
+        "echo hi",
+        "#SBATCH --time=5:00  (after a command: ignored, as sbatch does)",
+    ]
+    script = "\n".join(lines)
     d = slurm.parse_directives(script)
     assert d == {"job-name": "second", "array": "0-19", "mem": "100G"}
 
@@ -97,7 +96,7 @@ def test_dependency():
 
 
 def test_fill_pattern():
-    kw = dict(job_id="12_5", array_job_id="12", task=5, name="bias", node="box", user="me")
+    kw = {"job_id": "12_5", "array_job_id": "12", "task": 5, "name": "bias", "node": "box", "user": "me"}
     assert slurm.fill_pattern("%x_%A_%a.log", **kw) == "bias_12_5.log"
     assert slurm.fill_pattern("%j-%N-%u-100%%", **kw) == "12_5-box-me-100%"
     kw["task"] = None

@@ -233,7 +233,7 @@ def merge(directives: dict[str, str], cli: dict[str, str]) -> JobOptions:
 # One implementation, shared with the box: the runner fills output paths when a
 # task starts (only it knows the job id, host and user), and it must be
 # standalone there, so the function lives in runner.py and is re-exported here.
-from molab_slurm.runner import fill_pattern  # noqa: E402,F401
+from molab_slurm.runner import fill_pattern  # noqa: F401
 
 
 def default_output(is_array: bool) -> str:

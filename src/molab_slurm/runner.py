@@ -28,6 +28,7 @@ Layout of a job directory (written by the CLI, then by this runner):
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import pwd
@@ -103,7 +104,7 @@ def _parent_map() -> dict[int, int]:
                 continue
         return out
     # no /proc (macOS, for the test suite): ask ps
-    r = subprocess.run(["ps", "-A", "-o", "pid=,ppid="], capture_output=True, text=True)
+    r = subprocess.run(["ps", "-A", "-o", "pid=,ppid="], capture_output=True, text=True, check=False)
     for line in r.stdout.splitlines():
         try:
             pid, ppid = (int(x) for x in line.split())
@@ -282,14 +283,14 @@ class Runner:
         """This task's stdout and (if separate) stderr file, from the job's patterns."""
         s = self.spec
         jid = str(s["id"])
-        fields = dict(
-            job_id=f"{jid}_{idx}" if idx is not None else jid,
-            array_job_id=jid,
-            task=idx,
-            name=s["name"],
-            node=self.node,
-            user=pwd.getpwuid(os.getuid()).pw_name,
-        )
+        fields = {
+            "job_id": f"{jid}_{idx}" if idx is not None else jid,
+            "array_job_id": jid,
+            "task": idx,
+            "name": s["name"],
+            "node": self.node,
+            "user": pwd.getpwuid(os.getuid()).pw_name,
+        }
 
         def resolve(pattern):
             p = fill_pattern(pattern, **fields)
@@ -304,26 +305,25 @@ class Runner:
         out, err = self.paths(idx)
         for p in filter(None, (out, err)):
             os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
-        out_fh = open(out, "ab")
-        err_fh = open(err, "ab") if err else None
-        try:
-            proc = subprocess.Popen(
-                self.command(),
-                cwd=s["chdir"],
-                env=self.environment(idx),
-                stdin=subprocess.DEVNULL,
-                stdout=out_fh,
-                stderr=err_fh or subprocess.STDOUT,
-            )
-        except OSError as exc:
-            out_fh.write(f"molab-slurm: cannot start job: {exc}\n".encode())
-            out_fh.close()
-            self.set_task(idx, state="FAILED", reason=str(exc), exit_code="127:0", end=time.time())
+        # the child gets its own copies of the descriptors, so ours close as soon as it has started
+        with open(out, "ab") as out_fh, (open(err, "ab") if err else contextlib.nullcontext()) as err_fh:
+            try:
+                proc = subprocess.Popen(
+                    self.command(),
+                    cwd=s["chdir"],
+                    env=self.environment(idx),
+                    stdin=subprocess.DEVNULL,
+                    stdout=out_fh,
+                    stderr=err_fh or subprocess.STDOUT,
+                )
+            except OSError as exc:
+                out_fh.write(f"molab-slurm: cannot start job: {exc}\n".encode())
+                failed = exc
+            else:
+                failed = None
+        if failed is not None:
+            self.set_task(idx, state="FAILED", reason=str(failed), exit_code="127:0", end=time.time())
             return None
-        finally:
-            if err_fh:
-                err_fh.close()
-        out_fh.close()
         self.set_task(idx, state="RUNNING", reason="None", start=time.time(), pid=proc.pid, output=out, error=err or out)
         return proc
 
