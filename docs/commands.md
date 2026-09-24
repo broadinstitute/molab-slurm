@@ -25,9 +25,9 @@ molab-slurm reads its `#SBATCH` lines the way sbatch does — only in the leadin
 block, later lines winning — and command-line options override them.
 
 ```console
-$ molab-slurm sbatch --array=5-9%1 -D /marimo/repo workflows/SLURM/03.0.train_bias_model.sh
+$ molab-slurm sbatch --array=5-9%1 -D /marimo/repo slurm/train.sh
 Submitted batch job 13
-$ molab-slurm sbatch --parsable --dependency=afterok:13 --wrap 'bash select.sh'
+$ molab-slurm sbatch --parsable --dependency=afterok:13 --wrap 'bash summarize.sh'
 14
 ```
 
@@ -89,10 +89,10 @@ Pending and running jobs. Running array tasks get a row each; pending tasks
 of an array collapse into one, with SLURM's reason:
 
 ```text
-JOBID       PARTITION  NAME         USER     ST  TIME  NODES  NODELIST(REASON)
-13_5        molab      bias_sweep   me       R   8:23  1      gpu
-13_[6-9%1]  molab      bias_sweep   me       PD  0:00  1      (JobArrayTaskLimit)
-14          molab      select_bias  me       PD  0:00  1      (Dependency)
+JOBID       PARTITION  NAME       USER  ST  TIME  NODES  NODELIST(REASON)
+13_5        molab      sweep      me    R   8:23  1      gpu
+13_[6-9%1]  molab      sweep      me    PD  0:00  1      (JobArrayTaskLimit)
+14          molab      summarize  me    PD  0:00  1      (Dependency)
 ```
 
 `ST` is SLURM's code: `PD` pending, `R` running, `CD` completed, `F` failed,

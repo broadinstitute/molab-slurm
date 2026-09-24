@@ -261,7 +261,7 @@ class Runner:
                 "SLURM_CPUS_ON_NODE": str(s["cpus"]),
                 # Thread pools size themselves from os.cpu_count(), which on a
                 # molab box is the HOST's count (20 on a 4-CPU slice); numba is
-                # the one easiest to miss (TF-MoDISco ran 24 threads on 4 CPUs).
+                # the one easiest to miss (a numba job ran 24 threads on 4 CPUs).
                 "OMP_NUM_THREADS": env.get("OMP_NUM_THREADS", str(s["cpus"])),
                 "NUMBA_NUM_THREADS": env.get("NUMBA_NUM_THREADS", str(s["cpus"])),
             }

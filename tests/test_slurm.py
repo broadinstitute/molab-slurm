@@ -96,8 +96,8 @@ def test_dependency():
 
 
 def test_fill_pattern():
-    kw = {"job_id": "12_5", "array_job_id": "12", "task": 5, "name": "bias", "node": "box", "user": "me"}
-    assert slurm.fill_pattern("%x_%A_%a.log", **kw) == "bias_12_5.log"
+    kw = {"job_id": "12_5", "array_job_id": "12", "task": 5, "name": "train", "node": "box", "user": "me"}
+    assert slurm.fill_pattern("%x_%A_%a.log", **kw) == "train_12_5.log"
     assert slurm.fill_pattern("%j-%N-%u-100%%", **kw) == "12_5-box-me-100%"
     kw["task"] = None
     assert slurm.fill_pattern("%a", **kw) == "4294967294"

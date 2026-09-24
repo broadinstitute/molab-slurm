@@ -1,7 +1,7 @@
 """`molab-slurm` -- SLURM's commands for a molab box you cannot ssh into.
 
     molab-slurm init https://sb-....molab.run/ TOKEN --name gpu
-    molab-slurm sbatch --array=5-9 -D /marimo/repo workflows/SLURM/03.0.train_bias_model.sh
+    molab-slurm sbatch --array=5-9 -D /marimo/repo slurm/train.sh
     molab-slurm squeue | molab-slurm sacct -j 12 | molab-slurm scancel 12_7 | molab-slurm tail -f 12_5
     molab-slurm srun -D /marimo/repo nvidia-smi
     molab-slurm sinfo | molab-slurm put | molab-slurm get | molab-slurm open | molab-slurm keepalive

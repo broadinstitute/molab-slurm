@@ -12,15 +12,15 @@ mistaken for an official molab tool or collide with one.
 
 ```console
 $ molab-slurm init https://sb-0123456789abcdef.sb.molab.run/ $TOKEN --name gpu
-$ molab-slurm sbatch -J bias_sweep --array=5-9%1 --wrap 'bash run_step.sh --array "$SLURM_ARRAY_TASK_ID" 03.0.train_bias_model.sh'
+$ molab-slurm sbatch -J sweep --array=5-9%1 --wrap 'python train.py --seed "$SLURM_ARRAY_TASK_ID"'
 Submitted batch job 13
-$ molab-slurm sbatch -J select_bias --dependency=afterok:13 --wrap 'bash run_step.sh 03.1.select_bias.sh'
+$ molab-slurm sbatch -J summarize --dependency=afterok:13 --wrap 'python summarize.py'
 Submitted batch job 14
 $ molab-slurm squeue
-JOBID       PARTITION  NAME         USER     ST  TIME  NODES  NODELIST(REASON)
-13_5        molab      bias_sweep   me       R   4:12  1      gpu
-13_[6-9%1]  molab      bias_sweep   me       PD  0:00  1      (JobArrayTaskLimit)
-14          molab      select_bias  me       PD  0:00  1      (Dependency)
+JOBID       PARTITION  NAME       USER  ST  TIME  NODES  NODELIST(REASON)
+13_5        molab      sweep      me    R   4:12  1      gpu
+13_[6-9%1]  molab      sweep      me    PD  0:00  1      (JobArrayTaskLimit)
+14          molab      summarize  me    PD  0:00  1      (Dependency)
 ```
 
 A molab session is a gVisor sandbox, usually with a GPU, reachable only

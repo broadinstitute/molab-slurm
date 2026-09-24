@@ -77,7 +77,7 @@ To set up the environment a script expects — the equivalent of your cluster's
 `--rc`:
 
 ```bash
-molab-slurm sbatch --rc workflows/molab/env.sh --array=5-9 step.sh
+molab-slurm sbatch --rc ./env.sh --array=5-9 step.sh
 ```
 
 `--rc` is sourced by bash before the script starts; if it fails, the job fails.

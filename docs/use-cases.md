@@ -106,7 +106,7 @@ dependencies. With the repository on the box (cloned as in the setup above),
 submit the same scripts:
 
 ```console
-$ molab-slurm sbatch -D /marimo/repo workflows/SLURM/03.0.train_bias_model.sh
+$ molab-slurm sbatch -D /marimo/repo slurm/train.sh
 molab-slurm: not enforced on molab, ignored: --gres=gpu:1, --mem=128G, --partition=gpu
 Submitted batch job 13
 ```
@@ -115,10 +115,8 @@ The driver that submitted the chain runs on your machine, with `sbatch`
 replaced by `molab-slurm sbatch`:
 
 ```bash
-train=$(molab-slurm sbatch --parsable -D /marimo/repo --rc workflows/molab/env.sh \
-        workflows/SLURM/03.0.train_bias_model.sh)
-molab-slurm sbatch -D /marimo/repo --rc workflows/molab/env.sh --dependency=afterok:$train \
-        workflows/SLURM/03.1.select_bias.sh
+train=$(molab-slurm sbatch --parsable -D /marimo/repo --rc ./env.sh slurm/train.sh)
+molab-slurm sbatch -D /marimo/repo --rc ./env.sh --dependency=afterok:$train slurm/evaluate.sh
 ```
 
 `#SBATCH --array`, `--time`, `--output` patterns, `--chdir` and the `SLURM_*`
