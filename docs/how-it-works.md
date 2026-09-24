@@ -30,6 +30,33 @@ to come back empty, and one reply is truncated at about 1 MB (measured).
 So nothing long ever happens inside a request, and files move in 512 KB
 pieces.
 
+## Why work never runs in the kernel
+
+The notebook's kernel does one thing at a time, and marimo **interrupts it**
+when an agent's request goes away early. In marimo 0.24 the
+`/api/kernel/execute` handler calls `session.try_interrupt()` as soon as the
+client disconnects (a client-side timeout, Ctrl-C, a dropped connection), and
+its code-mode path does the same after 30 s without a result. The interrupt
+hits whatever the kernel is running at that moment — not necessarily the
+request that gave up.
+
+So without a scheduler, long work run *in the kernel* is fragile. Say a
+training loop runs in a notebook cell, or in one long agent request. An agent's
+next request waits behind it; if that request times out, marimo interrupts the
+kernel, and the training loop is what stops.
+
+molab-slurm keeps long work out of the kernel. A job is a separate process
+tree, started by the runner with `start_new_session=True`, so a kernel
+interrupt never reaches it. Every molab call is a short snippet that reads or
+writes files under `/marimo/.molab` and returns in about a second, so there is
+nothing long in the kernel to interrupt. Agents and people can poll `squeue`,
+`tail` and `sacct` as often as they like while jobs run.
+
+One thing still holds: molab's own calls go through the same kernel. A
+long-running **notebook cell** delays them, and a molab call that times out
+behind it can interrupt that cell. Run long work with `molab sbatch`, not in a
+cell.
+
 ## The runner
 
 `molab sbatch` builds a job spec on your machine — `#SBATCH` lines parsed,

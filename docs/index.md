@@ -42,6 +42,11 @@ JobID  JobName   State      ExitCode  Elapsed  Start                End
 | `molab put` / `get` / `open` | small files both ways; `open` shows a PNG or PDF in Preview |
 | `molab keepalive` | touches the kernel on a timer |
 
+Jobs run outside the notebook kernel. marimo interrupts the kernel when an agent's request times out or
+disconnects, and that would stop long work running *in* it, such as a training loop in a cell. molab's calls are
+short, so agents can check on jobs as often as they like. See
+[How it works](how-it-works.md#why-work-never-runs-in-the-kernel).
+
 ## Where to start
 
 1. [Install and connect](install.md) — one command, then `molab init`.

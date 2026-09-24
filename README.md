@@ -29,6 +29,11 @@ on the box.
   `init_command()` notebook helper is the exception: it runs in the notebook.)
 * **Jobs outlive your laptop.** Everything runs detached on the box; the CLI
   polls. Close the lid, come back, `molab tail -f 13_5`.
+* **Nothing long runs in the kernel.** marimo interrupts the kernel when an
+  agent's request times out or disconnects, which stops whatever the kernel is
+  running, such as a training loop in a cell. molab's calls are short snippets
+  and jobs run outside the kernel, so agents can poll while jobs keep running.
+  See [how it works](docs/how-it-works.md#why-work-never-runs-in-the-kernel).
 * **Honest about what it is not.** `--mem`, `--gres`, `--partition` and the
   rest are accepted and reported as ignored — there is no scheduler to
   enforce them.

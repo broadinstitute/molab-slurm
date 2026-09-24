@@ -312,6 +312,14 @@ Pitfalls:
 An agent or a CI-style script submits work, waits for it, and reads the
 result. Nothing in molab-slurm prompts, so it works unattended.
 
+This is also what makes it safe for an agent to keep checking on a long run.
+An agent that runs code directly in the notebook kernel (the marimo-pair way)
+shares that kernel with whatever else runs there, and marimo interrupts the
+kernel when one of its requests times out or disconnects: the long run stops.
+With molab-slurm the run is a job outside the kernel, and each check is a
+short call. See
+[How it works](how-it-works.md#why-work-never-runs-in-the-kernel).
+
 ```bash
 export MOLAB_URL=https://sb-0123456789abcdef.sb.molab.run/
 export MOLAB_TOKEN=...                        # rather than an argument to molab init, which ps can see
