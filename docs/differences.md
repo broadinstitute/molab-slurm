@@ -1,6 +1,6 @@
 ---
 title: Differences from SLURM
-nav_order: 7
+nav_order: 10
 ---
 
 # Differences from SLURM

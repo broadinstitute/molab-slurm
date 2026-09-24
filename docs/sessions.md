@@ -1,6 +1,6 @@
 ---
 title: Sessions and recovery
-nav_order: 5
+nav_order: 8
 ---
 
 # Sessions and recovery
@@ -19,7 +19,7 @@ notebook server, saves them under a name, and reports what the box has. It
 does not install, configure or set up anything on the box.
 
 ```bash
-molab init https://sb-<id>.molab.run/ <token> --name gpu
+molab init https://sb-<id>.sb.molab.run/ <token> --name gpu
 ```
 
 ## Setting up a box is your project's job
@@ -45,7 +45,8 @@ including the jobs molab-slurm was running and its state under
 
 What to do:
 
-1. **Start or reopen the session yourself** in molab and copy the new connect snippet.
+1. **Start or reopen the session yourself** in molab and copy the new connect snippet
+   (or run `mos.init_command(name="gpu")` in its notebook; see [Install and connect](install.md#connect-a-box)).
 2. `molab init <new-url> <token> --name gpu` — the same name, so your scripts keep working.
 3. `molab sinfo` — check the box, and **especially that the GPU is there**.
    A recreated session has come back without its GPU; nothing fails, GPU

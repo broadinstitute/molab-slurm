@@ -25,7 +25,8 @@ written for a cluster run as they are, provided the software they call exists
 on the box.
 
 * **No install on the box.** It needs only the box's own `python3`; the runner
-  is copied over on every submit. Stdlib-only Python on both ends.
+  is copied over on every submit. Stdlib-only Python on both ends. (The optional
+  `init_command()` notebook helper is the exception: it runs in the notebook.)
 * **Jobs outlive your laptop.** Everything runs detached on the box; the CLI
   polls. Close the lid, come back, `molab tail -f 13_5`.
 * **Honest about what it is not.** `--mem`, `--gres`, `--partition` and the
@@ -41,6 +42,10 @@ for your project is your project's own script, run with `molab srun`. See
 
 **Documentation: <https://broadinstitute.github.io/molab-slurm/>**
 
+Start with the [tutorials](https://broadinstitute.github.io/molab-slurm/tutorials/first-job.html);
+`init_command()`, the config file and exit codes are in the
+[Python API](https://broadinstitute.github.io/molab-slurm/api.html).
+
 ## Install
 
 ```bash
@@ -49,8 +54,10 @@ molab init <notebook-url> <token> --name gpu
 molab sinfo
 ```
 
-The token comes from the molab "connect" snippet. **It is code execution on
-the box** — treat it like an ssh key. `molab init` stores it in
+The token comes from the molab "connect" snippet — or, in a cell of the
+session's notebook, `import molab_slurm as mos; mos.init_command(name="gpu")` shows the whole `molab init`
+line with a copy button (the package has to be in the notebook's environment; see
+[docs/install.md](docs/install.md#connect-a-box)). **The token is code execution on the box** — treat it like an ssh key. `molab init` stores it in
 `~/.config/molab/config.json` with mode 600.
 
 ## Development

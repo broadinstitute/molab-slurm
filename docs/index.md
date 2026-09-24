@@ -45,12 +45,15 @@ JobID  JobName   State      ExitCode  Elapsed  Start                End
 ## Where to start
 
 1. [Install and connect](install.md) — one command, then `molab init`.
-2. [Commands](commands.md) — every verb and its options.
-3. [Batch scripts](batch-scripts.md) — which `#SBATCH` options are honoured and which environment variables are set.
-4. [Sessions and recovery](sessions.md) — **you start molab sessions yourself**; what to do when one ends.
-5. [How it works](how-it-works.md) — the kernel API, the runner, and why jobs survive your laptop.
-6. [Differences from SLURM](differences.md) — read this before relying on anything.
-7. [Troubleshooting](troubleshooting.md) and [related projects](related.md).
+2. [Tutorials](tutorials/index.md) — a first job, a small pipeline, and getting back to work when the session ends.
+3. [Use cases](use-cases.md) — quick checks, a fresh box, an existing SLURM pipeline, sweeps, long series, recovery, scripts and agents, each with its pitfalls.
+4. [Commands](commands.md) — every verb and its options.
+5. [Python API](api.md) — `init_command()` for the session's notebook, the config file, environment variables and exit codes.
+6. [Batch scripts](batch-scripts.md) — which `#SBATCH` options are honoured and which environment variables are set.
+7. [Sessions and recovery](sessions.md) — **you start molab sessions yourself**; what to do when one ends.
+8. [How it works](how-it-works.md) — the kernel API, the runner, and why jobs survive your laptop.
+9. [Differences from SLURM](differences.md) — read this before relying on anything.
+10. [Troubleshooting](troubleshooting.md) and [related projects](related.md).
 
 molab-slurm connects to a session that is already running; it never starts,
 stops or sets one up. Starting a session is done in molab, by you; setting up
