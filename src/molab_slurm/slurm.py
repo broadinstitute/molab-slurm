@@ -12,7 +12,7 @@ from __future__ import annotations
 import shlex
 from dataclasses import dataclass, field
 
-# Options molab honours. Everything else a script asks for is accepted,
+# Options molab-slurm honours. Everything else a script asks for is accepted,
 # recorded and reported as ignored: there is no scheduler to enforce it.
 HONOURED = {
     "array",

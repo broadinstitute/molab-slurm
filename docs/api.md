@@ -7,11 +7,11 @@ nav_order: 6
 {: .no_toc }
 
 molab-slurm's Python API is small: one function for a cell of the session's
-own notebook, which writes the `molab init` line for that session, and the two
-helpers it is built from. Everything else is the `molab` command
+own notebook, which writes the `molab-slurm init` line for that session, and the two
+helpers it is built from. Everything else is the `molab-slurm` command
 ([Commands](commands.md)). The modules behind it (`cli`, `box`, `config`,
 `remote`, `runner`, `slurm`) are not a public API; Python code that drives
-molab runs the command, and [Configuration](#configuration) says what the
+molab-slurm runs the command, and [Configuration](#configuration) says what the
 command reads.
 
 1. TOC
@@ -46,7 +46,7 @@ molab_slurm.init_command(name: str | None = None, *, cpus: int | None = None, wo
                          no_default: bool = False)
 ```
 
-The `molab init` command that connects this session, as a widget. Make it a
+The `molab-slurm init` command that connects this session, as a widget. Make it a
 cell's output:
 
 ```python
@@ -54,14 +54,14 @@ import molab_slurm as mos
 mos.init_command(name="gpu")
 ```
 
-It shows `molab init https://sb-0123456789abcdef.sb.molab.run/ <token hidden> --name gpu`,
+It shows `molab-slurm init https://sb-0123456789abcdef.sb.molab.run/ <token hidden> --name gpu`,
 a **copy** and a **show token** button, and a note under them.
 
 | parameter | becomes | notes |
 |---|---|---|
-| `name` | `--name NAME` | left out when `None`; `molab init` then saves the box as `default` |
-| `cpus` | `--cpus N` | the box's real CPU count; `molab init`'s default is 4 |
-| `workdir` | `--workdir DIR` | where jobs run by default; `molab init`'s default is `/marimo` |
+| `name` | `--name NAME` | left out when `None`; `molab-slurm init` then saves the box as `default` |
+| `cpus` | `--cpus N` | the box's real CPU count; `molab-slurm init`'s default is 4 |
+| `workdir` | `--workdir DIR` | where jobs run by default; `molab-slurm init`'s default is `/marimo` |
 | `no_default` | `--no-default` | added when `True`: save the box without making it the default |
 
 Values go through `str()` and are shell-quoted: `workdir="/marimo/my project"`
@@ -107,7 +107,7 @@ All are strings, set by Python.
 | attribute | synced to the browser | value |
 |---|---|---|
 | `url` | yes, a trait | `connect_url()` of the browser's address, or `""` |
-| `command` | no, a plain attribute | the full `molab init` line, token included; `""` until `url` is known |
+| `command` | no, a plain attribute | the full `molab-slurm init` line, token included; `""` until `url` is known |
 | `shown` | yes, a trait | `command` with the token replaced by `<token hidden>`: what the widget draws |
 | `note` | yes, a trait | the line under the command |
 
@@ -168,7 +168,7 @@ molab_slurm.notebook.server_token(pid: int | None = None, proc: str | os.PathLik
 ```
 
 The marimo server's auth token, read from its command line through `/proc`.
-Linux only. It does not check the token; `molab init` does, before saving.
+Linux only. It does not check the token; `molab-slurm init` does, before saving.
 
 Starting at process `pid` (default: the calling process, `os.getpid()`), it
 reads `<proc>/<pid>/cmdline` and looks for
@@ -216,16 +216,16 @@ marimo saves into HTML and PDF exports: that state is `url`, `shown` and
 browser's address is not kept either, because on molab it embeds the token
 as well.
 
-Keep it where `molab init` puts it, `~/.config/molab/config.json` with mode
+Keep it where `molab-slurm init` puts it, `~/.config/molab/config.json` with mode
 600, or in `MOLAB_TOKEN`, and never commit it.
 
 ## Configuration
 
-What the `molab` command reads, for scripts that run it.
+What the `molab-slurm` command reads, for scripts that run it.
 
 ### The config file
 
-`molab init` saves boxes to `~/.config/molab/config.json`
+`molab-slurm init` saves boxes to `~/.config/molab/config.json`
 (`$XDG_CONFIG_HOME/molab/config.json` when that is set). It writes a temporary
 file, sets it to mode 600 and renames it into place; the directory keeps its
 usual permissions.
@@ -247,28 +247,28 @@ usual permissions.
 
 | field | meaning |
 |---|---|
-| `default` | the box used when nothing else picks one; set by every `molab init` without `--no-default`, and by the first one regardless |
+| `default` | the box used when nothing else picks one; set by every `molab-slurm init` without `--no-default`, and by the first one regardless |
 | `boxes.NAME.url` | the notebook server's URL |
 | `boxes.NAME.token` | its token |
 | `boxes.NAME.cpus` | `--cpus`, default `4`: the box's real CPU count, the default and the cap for `SLURM_CPUS_PER_TASK`. molab boxes report the host's count (20+); the sessions molab-slurm was run on had a slice of about 4 |
 | `boxes.NAME.workdir` | `--workdir`, default `/marimo`: where jobs run without `-D` or `#SBATCH --chdir` |
-| `boxes.NAME.root` | `/marimo/.molab`: job state on the box. No `molab init` option sets it; a value edited into the file is used |
+| `boxes.NAME.root` | `/marimo/.molab`: job state on the box. No `molab-slurm init` option sets it; a value edited into the file is used |
 
-* `molab init` again with the same `--name` replaces `url` and `token` and
+* `molab-slurm init` again with the same `--name` replaces `url` and `token` and
   keeps `cpus`, `workdir` and `root` unless you pass them again.
 * `--no-default` leaves the default alone, except that the first box saved
   always becomes the default.
 * A missing `cpus`, `workdir` or `root` is filled from the defaults when the
   file is read. A file that is not valid JSON stops every command that reads
-  it with `molab: <path> is not valid JSON: ...`.
-* `molab boxes` lists the saved boxes, without their tokens, the default
+  it with `molab-slurm: <path> is not valid JSON: ...`.
+* `molab-slurm boxes` lists the saved boxes, without their tokens, the default
   marked `*`.
 
 ### Choosing a box
 
 Every command except `init` and `boxes` picks one box, in this order:
 
-1. `molab --box NAME <command>`: the saved box `NAME`, whatever the
+1. `molab-slurm --box NAME <command>`: the saved box `NAME`, whatever the
    environment says. It must come before the command: after `sbatch` or
    `srun`, `--box` is accepted and not used, and the job goes to the box the
    rest of this list picks.
@@ -282,15 +282,15 @@ Every command except `init` and `boxes` picks one box, in this order:
 When none of them names a box, or the name is not in the file (exit code 1):
 
 ```text
-molab: no box configured: run `molab init <notebook-url> <token>` first
-molab: no box named 'cpu' (known: gpu)
+molab-slurm: no box configured: run `molab-slurm init <notebook-url> <token>` first
+molab-slurm: no box named 'cpu' (known: gpu)
 ```
 
 `--session ID`, the other option that goes before the command, picks the
 notebook session when more than one notebook is open on the server (see
 [Troubleshooting](troubleshooting.md)).
 
-### Environment variables molab reads
+### Environment variables molab-slurm reads
 
 | variable | effect |
 |---|---|
@@ -298,7 +298,7 @@ notebook session when more than one notebook is open on the server (see
 | `MOLAB_TOKEN` | the token for `MOLAB_URL`; read only when `MOLAB_URL` is set |
 | `MOLAB_BOX` | a saved box to use instead of the default |
 | `XDG_CONFIG_HOME` | where the config file lives (default `~/.config`) |
-| `XDG_CACHE_HOME` | where `molab open` caches files (default `~/.cache`) |
+| `XDG_CACHE_HOME` | where `molab-slurm open` caches files (default `~/.cache`) |
 | `LOGNAME`, `USER`, `LNAME`, `USERNAME` | the first one set is the name in `squeue`'s `USER` column (Python's `getpass.getuser()`, which falls back to the password database) |
 
 Nothing else from your machine's environment reaches a job.
@@ -330,8 +330,8 @@ A job's environment is built in this order, later steps winning:
 through `--export`:
 
 ```text
-$ molab sbatch --export=SEEDS=1,2 --wrap 'bash run.sh'
-molab: --export: '2' must be ALL, NONE or VAR=value
+$ molab-slurm sbatch --export=SEEDS=1,2 --wrap 'bash run.sh'
+molab-slurm: --export: '2' must be ALL, NONE or VAR=value
 ```
 
 Put such variables in the command, `--wrap 'SEEDS=1,2 bash run.sh'`, or export
@@ -342,7 +342,7 @@ them from an `--rc` file.
 | exit code | when |
 |---|---|
 | `0` | success |
-| `1` | an error reported as `molab: ...`: no box configured, the box unreachable or the token refused, `sbatch`'s script or working directory missing on the box, `no job N`, `init`'s `not saved: ...`; `scancel` when any id does not exist |
+| `1` | an error reported as `molab-slurm: ...`: no box configured, the box unreachable or the token refused, `sbatch`'s script or working directory missing on the box, `no job N`, `init`'s `not saved: ...`; `scancel` when any id does not exist |
 | `2` | a usage error: an unknown command; an unknown option or a missing argument to `init`, `boxes`, `squeue`, `sacct`, `scancel`, `sinfo`, `tail`, `put`, `get`, `open` or `keepalive`; an unrecognised short option to `sbatch` or `srun` (an unknown long option is accepted and listed as ignored); a malformed job id, a bad `#SBATCH` line, an invalid `--array`, `--time`, `--dependency`, `--cpus-per-task` or `--export`, `sbatch` with neither a script nor `--wrap`, `srun` with nothing to run, `scancel` with no ids and no `--all` |
 
 `srun`, `sbatch --follow` and `tail -f` wait for a task and exit with its
@@ -355,27 +355,27 @@ result instead:
 | `0` | it ended `COMPLETED` |
 | `1` | it ended with no exit code of its own: `NODE_FAIL`, or cancelled before it started |
 | `130` | Ctrl-C: `srun` cancels the job first; `tail -f` and `--follow` stop watching and leave it running |
-| `255` | the connection dropped; the job is still on the box, and `molab tail -f ID` picks it up again |
+| `255` | the connection dropped; the job is still on the box, and `molab-slurm tail -f ID` picks it up again |
 
 Once it is running, `keepalive` exits 0; a failed ping is printed, not fatal.
 
-## Scripting molab from Python
+## Scripting molab-slurm from Python
 
 Run the command. `--parsable` prints only the job id on stdout; notices such
-as `molab: not enforced on molab, ignored: ...` go to stderr.
+as `molab-slurm: not enforced on molab, ignored: ...` go to stderr.
 
 ```python
 import subprocess
 
-def molab(*args: str) -> str:
-    """Run a molab command and return its stdout; raise CalledProcessError on a non-zero exit."""
-    return subprocess.run(["molab", *args], check=True, capture_output=True, text=True).stdout
+def slurm_cmd(*args: str) -> str:
+    """Run a molab-slurm command and return its stdout; raise CalledProcessError on a non-zero exit."""
+    return subprocess.run(["molab-slurm", *args], check=True, capture_output=True, text=True).stdout
 
-prev = molab("sbatch", "--parsable", "-J", "setup", "-D", "/marimo/myproject", "setup.sh").strip()
+prev = slurm_cmd("sbatch", "--parsable", "-J", "setup", "-D", "/marimo/myproject", "setup.sh").strip()
 for i, seeds in enumerate(["1,2", "3,4"]):
-    prev = molab("sbatch", "--parsable", f"--dependency=afterany:{prev}", "-J", f"train{i}",
-                 "-D", "/marimo/myproject", "--wrap", f"SEEDS={seeds} bash train.sh").strip()
-print(molab("squeue"))
+    prev = slurm_cmd("sbatch", "--parsable", f"--dependency=afterany:{prev}", "-J", f"train{i}",
+                     "-D", "/marimo/myproject", "--wrap", f"SEEDS={seeds} bash train.sh").strip()
+print(slurm_cmd("squeue"))
 ```
 
 This submits the whole chain at once and returns; the jobs run one after the
@@ -388,7 +388,7 @@ it finishes and skip work whose outputs exist, and a resubmitted chain redoes
 only what was lost (see [Sessions and recovery](sessions.md)).
 
 To pick the box from Python, pass `--box NAME` first
-(`molab("--box", "gpu", "squeue")`), or set `MOLAB_BOX` (or `MOLAB_URL` and
+(`slurm_cmd("--box", "gpu", "squeue")`), or set `MOLAB_BOX` (or `MOLAB_URL` and
 `MOLAB_TOKEN`) in `env=`, as a copy of `os.environ` with the variable added:
 `env=` replaces the whole environment, `PATH` included. Variables for the job
 itself go in `--export=VAR=value`, or, when a value has a comma in it, in

@@ -1,4 +1,4 @@
-"""Box-side job runner: one process per `molab sbatch` job. Stdlib only.
+"""Box-side job runner: one process per `molab-slurm sbatch` job. Stdlib only.
 
 This file is copied verbatim to the box and run with the box's own python3
 (`python3 runner.py <job_dir>`), detached from the notebook kernel that
@@ -69,7 +69,7 @@ _PATTERN = re.compile(r"%(%|[AajxNu])")
 
 def fill_pattern(pattern: str, *, job_id: str, array_job_id: str, task, name: str, node: str,
                  user: str) -> str:  # fmt: skip
-    """Expand SLURM filename patterns. For array tasks %j is `A_a` (molab has no
+    """Expand SLURM filename patterns. For array tasks %j is `A_a` (molab-slurm has no
     separate per-task numeric id); %a is 4294967294, as in SLURM, outside an array."""
     subs = {
         "%": "%",
@@ -233,7 +233,7 @@ class Runner:
         interp = shlex.split(first[2:]) if first.startswith("#!") else ["bash"]
         cmd = interp + [path] + list(s.get("args") or [])
         if s.get("rc"):
-            cmd = ["bash", "-c", 'source "$1" || exit $?; shift; exec "$@"', "molab-rc", s["rc"]] + cmd
+            cmd = ["bash", "-c", 'source "$1" || exit $?; shift; exec "$@"', "molab-slurm-rc", s["rc"]] + cmd
         return cmd
 
     def environment(self, idx) -> dict[str, str]:
@@ -316,7 +316,7 @@ class Runner:
                 stderr=err_fh or subprocess.STDOUT,
             )
         except OSError as exc:
-            out_fh.write(f"molab: cannot start job: {exc}\n".encode())
+            out_fh.write(f"molab-slurm: cannot start job: {exc}\n".encode())
             out_fh.close()
             self.set_task(idx, state="FAILED", reason=str(exc), exit_code="127:0", end=time.time())
             return None

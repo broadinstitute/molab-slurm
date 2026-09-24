@@ -14,9 +14,11 @@ You need a molab account that can start GPU sessions, and Python ≥ 3.9 with
 
 ## 1. Install the CLI
 
+The package gives you one command, `molab-slurm`:
+
 ```bash
 uv tool install git+https://github.com/broadinstitute/molab-slurm
-molab --version
+molab-slurm --version
 ```
 
 You should see the version number (`0.1.0` as of this writing). molab-slurm
@@ -50,7 +52,7 @@ You should see the line, with a **copy** and a **show token** button, and a
 note under it:
 
 ```text
-molab init https://sb-0123456789abcdef.sb.molab.run/ <token hidden> --name gpu
+molab-slurm init https://sb-0123456789abcdef.sb.molab.run/ <token hidden> --name gpu
 the token is a shell on this box: treat it like an ssh key
 ```
 
@@ -76,14 +78,14 @@ Press **copy**. What is going on:
 
 Without the widget: ask the notebook to connect an agent, and molab shows a
 snippet with the notebook's URL and a token. Put them in the same line:
-`molab init <url> <token> --name gpu`.
+`molab-slurm init <url> <token> --name gpu`.
 
 ## 4. Save the box
 
 Paste the line into a terminal on your laptop:
 
 ```bash
-molab init https://sb-0123456789abcdef.sb.molab.run/ <token> --name gpu
+molab-slurm init https://sb-0123456789abcdef.sb.molab.run/ <token> --name gpu
 ```
 
 You should see:
@@ -101,7 +103,7 @@ disk      22.2 GB used under /marimo/.molab's filesystem
 gives:
 
 ```text
-molab: not saved: https://sb-0123456789abcdef.sb.molab.run: HTTP 403 listing sessions (wrong token?)
+molab-slurm: not saved: https://sb-0123456789abcdef.sb.molab.run: HTTP 403 listing sessions (wrong token?)
 ```
 
 `gpu` is now the default box, so the commands below need no `--box`. The name
@@ -113,7 +115,7 @@ box](../install.md#the-token-is-a-shell-on-the-box)).
 ## 5. Check the box
 
 ```bash
-molab sinfo
+molab-slurm sinfo
 ```
 
 You should see the box description `init` printed, then a `jobs` line:
@@ -143,8 +145,8 @@ session gets; on one session we measured about 4 CPUs and 32 GB. Jobs get
 ## 6. Run a command
 
 ```bash
-molab srun pwd
-molab srun nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+molab-slurm srun pwd
+molab-slurm srun nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 ```
 
 You should see:
@@ -158,11 +160,11 @@ NVIDIA RTX PRO 6000 Blackwell Server Edition, 97887 MiB
 ends. It runs in `/marimo`, the box's `--workdir`: your laptop's current
 directory means nothing on the box, and `-D DIR` picks another one.
 
-* molab's exit code is the command's, so `srun` works in `&&` chains and
+* molab-slurm's exit code is the command's, so `srun` works in `&&` chains and
   scripts on your laptop.
 * **Ctrl-C cancels the job**, as with SLURM's `srun`.
-* If the connection drops instead, the job keeps running; molab says which
-  job is still on the box, and `molab tail -f ID` picks its output up again.
+* If the connection drops instead, the job keeps running; molab-slurm says which
+  job is still on the box, and `molab-slurm tail -f ID` picks its output up again.
 
 Every `srun` is a real job with an id. These two were jobs 1 and 2.
 
@@ -172,7 +174,7 @@ A job you do not want to sit and watch goes through `sbatch`. `--wrap` runs a
 command line without a script:
 
 ```bash
-molab sbatch -J count --wrap 'for i in $(seq 1 60); do echo "step $i of 60"; sleep 5; done; nvidia-smi > gpu.txt'
+molab-slurm sbatch -J count --wrap 'for i in $(seq 1 60); do echo "step $i of 60"; sleep 5; done; nvidia-smi > gpu.txt'
 ```
 
 You should see:
@@ -191,7 +193,7 @@ Submitted batch job 3
 ## 8. Watch it
 
 ```bash
-molab squeue
+molab-slurm squeue
 ```
 
 You should see:
@@ -207,7 +209,7 @@ prints only the header.
 Stream the job's output:
 
 ```bash
-molab tail -f 3
+molab-slurm tail -f 3
 ```
 
 ```text
@@ -217,14 +219,14 @@ step 3 of 60
 ```
 
 `tail -f` returns when the job ends, with the job's exit code. Ctrl-C only
-stops following — `molab: stopped following; job 3 keeps running` — and
-running it again streams the file from the beginning. `molab tail -n 5 3`
+stops following — `molab-slurm: stopped following; job 3 keeps running` — and
+running it again streams the file from the beginning. `molab-slurm tail -n 5 3`
 prints the last five lines and returns.
 
 When it has finished:
 
 ```bash
-molab sacct
+molab-slurm sacct
 ```
 
 You should see all three jobs:
@@ -242,8 +244,8 @@ JobID  JobName     State      ExitCode  Elapsed  Start                End
 ## 9. Copy the result back
 
 ```bash
-molab get /marimo/gpu.txt
-molab get /marimo/slurm-3.out
+molab-slurm get /marimo/gpu.txt
+molab-slurm get /marimo/slurm-3.out
 ```
 
 You should see where each file was written — your current directory, unless
@@ -254,8 +256,8 @@ gpu.txt
 slurm-3.out
 ```
 
-Give the path on the box in full. `molab open /marimo/plot.png` fetches a
-file and opens it (Preview on macOS), and `molab put LOCAL REMOTE` goes the
+Give the path on the box in full. `molab-slurm open /marimo/plot.png` fetches a
+file and opens it (Preview on macOS), and `molab-slurm put LOCAL REMOTE` goes the
 other way. All three are for small files, up to 64 MB; larger results should
 leave the box through a bucket, copied by the job itself. The next tutorial
 does that.

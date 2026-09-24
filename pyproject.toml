@@ -22,7 +22,7 @@ classifiers = [
 notebook = ["anywidget>=0.9"]  # molab_slurm.init_command(), inside a notebook
 
 [project.scripts]
-molab = "molab_slurm.cli:entry"
+molab-slurm = "molab_slurm.cli:entry"
 
 [project.urls]
 Documentation = "https://broadinstitute.github.io/molab-slurm/"

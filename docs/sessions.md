@@ -14,12 +14,12 @@ copy the connect snippet it shows — the notebook URL and a token.
 access to molab's account or API, only to the notebook server of a session
 that is already running.
 
-`molab init` only **connects**: it checks the URL and token against that
+`molab-slurm init` only **connects**: it checks the URL and token against that
 notebook server, saves them under a name, and reports what the box has. It
 does not install, configure or set up anything on the box.
 
 ```bash
-molab init https://sb-<id>.sb.molab.run/ <token> --name gpu
+molab-slurm init https://sb-<id>.sb.molab.run/ <token> --name gpu
 ```
 
 ## Setting up a box is your project's job
@@ -29,7 +29,7 @@ software onto the box is specific to your project, so it belongs in a script
 in your project, run *through* molab-slurm like any other command:
 
 ```bash
-molab srun -D /marimo/myproject bash setup.sh
+molab-slurm srun -D /marimo/myproject bash setup.sh
 ```
 
 molab-slurm never refers to such scripts; it stays transport and
@@ -47,11 +47,11 @@ What to do:
 
 1. **Start or reopen the session yourself** in molab and copy the new connect snippet
    (or run `mos.init_command(name="gpu")` in its notebook; see [Install and connect](install.md#connect-a-box)).
-2. `molab init <new-url> <token> --name gpu` — the same name, so your scripts keep working.
-3. `molab sinfo` — check the box, and **especially that the GPU is there**.
+2. `molab-slurm init <new-url> <token> --name gpu` — the same name, so your scripts keep working.
+3. `molab-slurm sinfo` — check the box, and **especially that the GPU is there**.
    A recreated session has come back without its GPU; nothing fails, GPU
    code just runs on the CPU, very slowly.
-4. Re-run your project's setup (`molab srun ...`), then resubmit your jobs.
+4. Re-run your project's setup (`molab-slurm srun ...`), then resubmit your jobs.
 
 How much work that costs depends on your project, not on molab-slurm:
 molab-slurm keeps no copy of anything off the box. Copy results somewhere
@@ -64,7 +64,7 @@ running when the session died.
 molab's idle policy is not documented. What helps, in order:
 
 * keep the notebook open in a browser tab on a machine that stays awake;
-* `molab keepalive --every 4m --for 8h` from a machine that stays online —
+* `molab-slurm keepalive --every 4m --for 8h` from a machine that stays online —
   it generates kernel API traffic, which may or may not be what molab's idle
   timer counts.
 

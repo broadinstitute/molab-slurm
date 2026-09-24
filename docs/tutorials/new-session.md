@@ -15,7 +15,7 @@ disk. molab-slurm finds out the next time you run a command, which then fails
 to reach the box:
 
 ```text
-molab: cannot reach https://sb-0123456789abcdef.sb.molab.run: ...
+molab-slurm: cannot reach https://sb-0123456789abcdef.sb.molab.run: ...
 ```
 
 or answers with an HTTP error listing sessions. Either way, that URL and
@@ -43,7 +43,7 @@ Kept — everything off the box:
   under the same name.
 * **The bucket**, with every fold whose job reached its copy step, and the
   `done` markers.
-* Files you fetched with `molab get` or `molab open`, and your repository.
+* Files you fetched with `molab-slurm get` or `molab-slurm open`, and your repository.
 
 molab-slurm keeps no copy of anything off the box. What survives a session is
 what your jobs copied somewhere else.
@@ -67,15 +67,15 @@ package manager, as in [Your first job](first-job.md), step 3. Copy the line
 it shows — it has the new URL and token — and paste it on your laptop:
 
 ```bash
-molab init https://sb-fedcba9876543210.sb.molab.run/ <token> --name gpu
+molab-slurm init https://sb-fedcba9876543210.sb.molab.run/ <token> --name gpu
 ```
 
 You should see `saved box 'gpu' to ...` and the box's description, with the
-new URL. The same name keeps `molab --box gpu`, `MOLAB_BOX=gpu` and your
+new URL. The same name keeps `molab-slurm --box gpu`, `MOLAB_BOX=gpu` and your
 scripts working, and makes it the default again:
 
 ```bash
-molab boxes
+molab-slurm boxes
 ```
 
 ```text
@@ -86,7 +86,7 @@ molab boxes
 ## 3. Check the GPU
 
 ```bash
-molab sinfo
+molab-slurm sinfo
 ```
 
 The last lines should show one GPU and no jobs:
@@ -106,7 +106,7 @@ gpus      0  -- the NVIDIA driver entry is there but no GPU is attached; GPU job
 Nothing fails on such a box; training just runs on the CPU, very slowly.
 Start the session again on a GPU machine before submitting anything.
 
-`molab sacct` on the new box prints only its header: the old history went
+`molab-slurm sacct` on the new box prints only its header: the old history went
 with the old box.
 
 ## 4. Set the box up again
@@ -114,12 +114,12 @@ with the old box.
 The same first step as before, on an empty box:
 
 ```bash
-molab srun git clone https://github.com/my-org/myproject /marimo/myproject
+molab-slurm srun git clone https://github.com/my-org/myproject /marimo/myproject
 ```
 
 If the new session kept `/marimo/myproject`, the clone fails because the
 directory exists; update it instead with
-`molab srun -D /marimo/myproject git pull`.
+`molab-slurm srun -D /marimo/myproject git pull`.
 
 The rest of the setup — the environment, the reference download, the inputs
 from the bucket — is `setup.sh`, the first job `submit.sh` submits. On an
@@ -137,7 +137,7 @@ bash submit.sh
 You should see:
 
 ```text
-molab: not enforced on molab, ignored: --gres=gpu:1, --mem=32G
+molab-slurm: not enforced on molab, ignored: --gres=gpu:1, --mem=32G
 setup 2, train 3, summarize 4
 ```
 
@@ -150,7 +150,7 @@ Once setup has finished, each training task first asks the bucket whether its
 fold is done:
 
 ```bash
-molab tail 3_0
+molab-slurm tail 3_0
 ```
 
 ```text
@@ -160,7 +160,7 @@ fold 0: already in gs://my-bucket/myproject/results/fold_0
 A little later:
 
 ```bash
-molab sacct
+molab-slurm sacct
 ```
 
 ```text
@@ -186,7 +186,7 @@ costs the work that was running, plus the setup.
 ## 6. Before you walk away again
 
 * Keep the notebook open in a browser tab on a machine that stays awake.
-  `molab keepalive --every 4m --for 8h` adds kernel API traffic, which may or
+  `molab-slurm keepalive --every 4m --for 8h` adds kernel API traffic, which may or
   may not be what molab's idle timer counts
   ([Keeping a session alive](../sessions.md#keeping-a-session-alive)).
 * If the session died while two heavy jobs ran together, run them one at a

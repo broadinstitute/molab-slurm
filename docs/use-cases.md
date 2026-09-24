@@ -20,12 +20,12 @@ You want to know what the box is doing before you commit hours to it: is the
 GPU there, how full is the disk, is the last job still using the GPU.
 
 ```console
-$ molab sinfo
-$ molab srun nvidia-smi --query-gpu=name,utilization.gpu --format=csv,noheader
+$ molab-slurm sinfo
+$ molab-slurm srun nvidia-smi --query-gpu=name,utilization.gpu --format=csv,noheader
 NVIDIA RTX PRO 6000 Blackwell Server Edition, 83 %
-$ molab srun df -h /marimo
-$ molab srun -D /marimo/myproject git status --short
-$ molab srun bash -c 'nproc; free -g'
+$ molab-slurm srun df -h /marimo
+$ molab-slurm srun -D /marimo/myproject git status --short
+$ molab-slurm srun bash -c 'nproc; free -g'
 ```
 
 Pitfalls:
@@ -36,7 +36,7 @@ Pitfalls:
 * **The box's own numbers overstate it.** `nproc` and `os.cpu_count()` report
   the host (20+), and `free` more memory than the session has. On one session
   the real slice was about 4 CPUs and 32 GB of RAM (the GPU was an RTX PRO 6000
-  Blackwell, 96 GB). `molab sinfo` shows the CPU count you configured at `init`.
+  Blackwell, 96 GB). `molab-slurm sinfo` shows the CPU count you configured at `init`.
 * **There is no terminal.** stdin is `/dev/null`; a REPL, `top` or anything
   that asks a question will not work.
 * Every `srun` is a real job: it has an id, shows in `sacct`, and Ctrl-C
@@ -70,20 +70,20 @@ exit $rc
 ```
 
 ```bash
-molab srun git clone https://github.com/my-org/myproject /marimo/myproject
-setup=$(molab sbatch --parsable -D /marimo/myproject setup.sh)
-molab sbatch -D /marimo/myproject --dependency=afterok:$setup train.sh
-molab tail -f $setup
+molab-slurm srun git clone https://github.com/my-org/myproject /marimo/myproject
+setup=$(molab-slurm sbatch --parsable -D /marimo/myproject setup.sh)
+molab-slurm sbatch -D /marimo/myproject --dependency=afterok:$setup train.sh
+molab-slurm tail -f $setup
 ```
 
 Pitfalls:
 
-* **The script must already be on the box.** `molab sbatch setup.sh` reads
+* **The script must already be on the box.** `molab-slurm sbatch setup.sh` reads
   `setup.sh` there and never uploads it; on an empty box it fails with
   `no such script on the box: /marimo/setup.sh`; with `-D /marimo/myproject`
   it fails earlier, with
   `working directory does not exist on the box: /marimo/myproject`. Clone the
-  repository first, as above, or `molab put` a self-contained script: `put`
+  repository first, as above, or `molab-slurm put` a self-contained script: `put`
   moves small files (up to 64 MB) and creates missing directories; give it an
   absolute path.
 * **A bare `wait` returns 0** even when a step failed. Wait on each PID, as
@@ -106,18 +106,18 @@ dependencies. With the repository on the box (cloned as in the setup above),
 submit the same scripts:
 
 ```console
-$ molab sbatch -D /marimo/repo workflows/SLURM/03.0.train_bias_model.sh
-molab: not enforced on molab, ignored: --gres=gpu:1, --mem=128G, --partition=gpu
+$ molab-slurm sbatch -D /marimo/repo workflows/SLURM/03.0.train_bias_model.sh
+molab-slurm: not enforced on molab, ignored: --gres=gpu:1, --mem=128G, --partition=gpu
 Submitted batch job 13
 ```
 
 The driver that submitted the chain runs on your machine, with `sbatch`
-replaced by `molab sbatch`:
+replaced by `molab-slurm sbatch`:
 
 ```bash
-train=$(molab sbatch --parsable -D /marimo/repo --rc workflows/molab/env.sh \
+train=$(molab-slurm sbatch --parsable -D /marimo/repo --rc workflows/molab/env.sh \
         workflows/SLURM/03.0.train_bias_model.sh)
-molab sbatch -D /marimo/repo --rc workflows/molab/env.sh --dependency=afterok:$train \
+molab-slurm sbatch -D /marimo/repo --rc workflows/molab/env.sh --dependency=afterok:$train \
         workflows/SLURM/03.1.select_bias.sh
 ```
 
@@ -167,13 +167,13 @@ touch "$out/done"
 ```
 
 ```console
-$ molab sbatch -D /marimo/myproject sweep.sh
+$ molab-slurm sbatch -D /marimo/myproject sweep.sh
 Submitted batch job 12
-$ molab squeue
+$ molab-slurm squeue
 JOBID       PARTITION  NAME        USER  ST  TIME     NODES  NODELIST(REASON)
 12_0        molab      seed_sweep  me    R   1:02:13  1      gpu
 12_[1-4%1]  molab      seed_sweep  me    PD  0:00     1      (JobArrayTaskLimit)
-$ molab scancel 12_3            # drop one seed; the others still run
+$ molab-slurm scancel 12_3            # drop one seed; the others still run
 ```
 
 Pitfalls:
@@ -183,7 +183,7 @@ Pitfalls:
   GPU and in the same memory. A session was killed after about 4.5 hours —
   most likely from memory — while two GPU training jobs ran at once. Heavy
   jobs were safer one at a time.
-* **`%1` only limits one array.** Two separate `molab sbatch` submissions run
+* **`%1` only limits one array.** Two separate `molab-slurm sbatch` submissions run
   at the same time; order them with `--dependency`.
 * **Environment variables with commas cannot go through `--export`.**
   `--export=SEEDS=1,2` is split on the comma and refused
@@ -207,7 +207,7 @@ before; each job copies its results to a bucket as soon as it finishes.
 ```bash
 prev=
 for cfg in baseline fp16 bf16 large_batch; do
-  prev=$(molab sbatch --parsable -D /marimo/myproject -J "bench_$cfg" -o 'logs/%x-%j.out' \
+  prev=$(molab-slurm sbatch --parsable -D /marimo/myproject -J "bench_$cfg" -o 'logs/%x-%j.out' \
          ${prev:+--dependency=afterany:$prev} --wrap "CONFIG=$cfg bash bench.sh")
 done
 ```
@@ -243,18 +243,18 @@ Pitfalls:
   such as the setup job.
 * **Cancelling a pending job in the middle starts the next one at once.** A
   cancelled job is finished as far as `afterany` is concerned, so after
-  `molab scancel 22` job 23 starts while 21 is still running: two heavy jobs
+  `molab-slurm scancel 22` job 23 starts while 21 is still running: two heavy jobs
   at once. Cancel from the end of the chain, or cancel the rest and resubmit.
 * **Know where each variable expands.** In double quotes (`"CONFIG=$cfg ..."`)
   it expands on your laptop, which is what the loop wants; `SLURM_*` variables
   exist only on the box and need single quotes.
 * **Closing the laptop stops only what runs on the laptop.** The jobs and
-  their dependency waits are on the box. `molab tail -f` loses its connection;
+  their dependency waits are on the box. `molab-slurm tail -f` loses its connection;
   run it again (it starts from the beginning of the file) or use
-  `molab tail -n 50`.
+  `molab-slurm tail -n 50`.
 * **The session is the limit, not the laptop.** molab's idle policy is not
   documented: keep the notebook open in a browser on a machine that stays
-  awake, or run `molab keepalive` from one that stays online (see
+  awake, or run `molab-slurm keepalive` from one that stays online (see
   [Sessions and recovery](sessions.md#keeping-a-session-alive)). Copying each
   result as its job ends means a dead session costs one run, not the series.
 * A job whose runner is gone (`NODE_FAIL`) counts as finished for
@@ -262,7 +262,7 @@ Pitfalls:
 
 ## Recover from a session that died
 
-`molab squeue` says `cannot reach https://sb-...`, or `HTTP 403 listing
+`molab-slurm squeue` says `cannot reach https://sb-...`, or `HTTP 403 listing
 sessions (wrong token?)`. The session has ended, and with it the jobs and
 everything under `/marimo/.molab`.
 [Sessions and recovery](sessions.md#when-a-session-dies) has the steps; the
@@ -275,10 +275,10 @@ mos.init_command(name="gpu")
 ```
 
 ```bash
-molab init https://sb-0123456789abcdef.sb.molab.run/ <token> --name gpu   # the widget's line; "copy" includes the token
-molab sinfo                                                               # is the GPU there?
-molab srun bash -c '[ -d /marimo/myproject ] || git clone https://github.com/my-org/myproject /marimo/myproject'
-setup=$(molab sbatch --parsable -D /marimo/myproject setup.sh)
+molab-slurm init https://sb-0123456789abcdef.sb.molab.run/ <token> --name gpu   # the widget's line; "copy" includes the token
+molab-slurm sinfo                                                               # is the GPU there?
+molab-slurm srun bash -c '[ -d /marimo/myproject ] || git clone https://github.com/my-org/myproject /marimo/myproject'
+setup=$(molab-slurm sbatch --parsable -D /marimo/myproject setup.sh)
 # then resubmit the chain, with --dependency=afterok:$setup on its first job
 ```
 
@@ -322,10 +322,10 @@ short call. See
 
 ```bash
 export MOLAB_URL=https://sb-0123456789abcdef.sb.molab.run/
-export MOLAB_TOKEN=...                        # rather than an argument to molab init, which ps can see
-jid=$(molab sbatch --parsable -D /marimo/myproject --wrap 'bash run.sh')
-molab tail -f "$jid" > run.log; rc=$?         # blocks until the task ends; rc is its exit code
-molab sacct -j "$jid" -s FAILED,TIMEOUT,OUT_OF_MEMORY,NODE_FAIL,CANCELLED | tail -n +2
+export MOLAB_TOKEN=...                        # rather than an argument to molab-slurm init, which ps can see
+jid=$(molab-slurm sbatch --parsable -D /marimo/myproject --wrap 'bash run.sh')
+molab-slurm tail -f "$jid" > run.log; rc=$?   # blocks until the task ends; rc is its exit code
+molab-slurm sacct -j "$jid" -s FAILED,TIMEOUT,OUT_OF_MEMORY,NODE_FAIL,CANCELLED | tail -n +2
 ```
 
 Any line from the last command is a task that did not complete.
@@ -349,7 +349,7 @@ Pitfalls:
 * `tail -f ID` on an array follows only its first task. For the whole array,
   poll `squeue -j ID` until only the header is left, then read `sacct -j ID`.
 * `--parsable` prints only the id on stdout. Warnings, such as the
-  `not enforced on molab, ignored: ...` line, go to stderr, prefixed `molab:`.
+  `not enforced on molab, ignored: ...` line, go to stderr, prefixed `molab-slurm:`.
 * **Prefer `sbatch` to `srun` for anything long.** `srun` holds the command
   open until the job ends, which can run into an agent's own command timeout;
   `sbatch` returns at once and `tail -n 50` reads the latest output without

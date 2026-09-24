@@ -13,8 +13,8 @@ want them, and every result copied to a bucket by the job that made it.
 
 It starts from a connected box named `gpu` ([Your first job](first-job.md)).
 The project is an example: `myproject`, `pixi`, `gcloud`, `train.py` and
-`summarize.py` stand for whatever yours uses. Only the `molab` commands are
-molab-slurm; the scripts are yours, and molab-slurm reads nothing in them but
+`summarize.py` stand for whatever yours uses. Only the `molab-slurm` commands
+are the tool's; the scripts are yours, and molab-slurm reads nothing in them but
 the shebang and the `#SBATCH` lines. The bucket commands assume `gcloud` on
 the box with access to `gs://my-bucket/` — on a fresh box, getting it there
 is part of your setup too.
@@ -36,7 +36,7 @@ A new session has nothing of yours on it. Clone the project with a short
 `srun`, which runs in `/marimo`, the default working directory:
 
 ```bash
-molab srun git clone https://github.com/my-org/myproject /marimo/myproject
+molab-slurm srun git clone https://github.com/my-org/myproject /marimo/myproject
 ```
 
 You should see git's own output. On a new session this is job 1, and the ids
@@ -47,10 +47,10 @@ This comes first because `sbatch` reads a script **on the box** when you
 submit it. Before the clone, it stops with:
 
 ```text
-molab: working directory does not exist on the box: /marimo/myproject
+molab-slurm: working directory does not exist on the box: /marimo/myproject
 ```
 
-To update the code later, `molab srun -D /marimo/myproject git pull`. A task
+To update the code later, `molab-slurm srun -D /marimo/myproject git pull`. A task
 reads its script when it starts, so a pull also changes what pending tasks
 will run; `#SBATCH` lines, read at submit time, do not change.
 
@@ -60,7 +60,7 @@ On a cluster, `module load` and `conda activate` lines set up a job. Here they
 go in a file in the project, passed with `--rc`:
 
 ```bash
-# env.sh -- sourced by bash before every job: molab sbatch --rc ./env.sh
+# env.sh -- sourced by bash before every job: molab-slurm sbatch --rc ./env.sh
 export PATH="$HOME/.pixi/bin:$PATH"
 export BUCKET=gs://my-bucket/myproject
 export SEEDS=1,2,3
@@ -74,8 +74,8 @@ Why a file rather than `--export`: `--export` values are split on commas, so a
 value with a comma in it cannot go through it.
 
 ```console
-$ molab sbatch -D /marimo/myproject --export=SEEDS=1,2 train.sh
-molab: --export: '2' must be ALL, NONE or VAR=value
+$ molab-slurm sbatch -D /marimo/myproject --export=SEEDS=1,2 train.sh
+molab-slurm: --export: '2' must be ALL, NONE or VAR=value
 ```
 
 `--export=ALL,SEED=1` works. For values with commas, use `--rc`, put the
@@ -126,7 +126,7 @@ exit "$status"
 ```
 
 It uses `$BUCKET` and the pixi `PATH`, so it runs with `--rc ./env.sh` like
-every other job. To try it on its own, `molab srun -D /marimo/myproject --rc
+every other job. To try it on its own, `molab-slurm srun -D /marimo/myproject --rc
 ./env.sh bash setup.sh` streams it to your terminal — but Ctrl-C there
 cancels it. A setup that takes a while belongs in `sbatch`, which step 6 does.
 
@@ -164,16 +164,16 @@ touch "$out/done"
 gcloud storage cp "$out/done" "$dest/done"
 ```
 
-What molab does with the header:
+What molab-slurm does with the header:
 
-* `--array=0-3%1`: tasks 0 to 3, at most one at a time. `%1` is also molab's
-  default. On the command line, `--array=2,3` overrides it and runs only
+* `--array=0-3%1`: tasks 0 to 3, at most one at a time. `%1` is also
+  molab-slurm's default. On the command line, `--array=2,3` overrides it and runs only
   those folds, still one at a time.
 * `--output=logs/%x_%A_%a.out`: `logs/train_3_0.out` for task 0 of job 3.
-  molab creates `logs/` when the task starts.
+  molab-slurm creates `logs/` when the task starts.
 * `--time=6:00:00` is enforced: SIGTERM, then SIGKILL, and the task ends
   `TIMEOUT`.
-* `--gres` and `--mem` are not enforced; molab accepts them and says so when
+* `--gres` and `--mem` are not enforced; molab-slurm accepts them and says so when
   you submit.
 
 ## 5. Add a step that waits
@@ -203,9 +203,9 @@ script name; anything after it is passed to the script:
 # submit.sh -- runs on your laptop and submits the whole pipeline
 set -euo pipefail
 on_box=(-D /marimo/myproject --rc ./env.sh)
-setup=$(molab sbatch --parsable "${on_box[@]}" setup.sh)
-train=$(molab sbatch --parsable "${on_box[@]}" --dependency=afterok:"$setup" train.sh)
-summary=$(molab sbatch --parsable "${on_box[@]}" --dependency=afterok:"$train" -J summarize \
+setup=$(molab-slurm sbatch --parsable "${on_box[@]}" setup.sh)
+train=$(molab-slurm sbatch --parsable "${on_box[@]}" --dependency=afterok:"$setup" train.sh)
+summary=$(molab-slurm sbatch --parsable "${on_box[@]}" --dependency=afterok:"$train" -J summarize \
   --wrap 'gcloud storage cp -r "$BUCKET/results" . && pixi run python summarize.py results > summary.tsv && gcloud storage cp summary.tsv "$BUCKET/"')
 echo "setup $setup, train $train, summarize $summary"
 ```
@@ -219,12 +219,12 @@ bash submit.sh
 You should see the ignored options of `train.sh`, then the ids:
 
 ```text
-molab: not enforced on molab, ignored: --gres=gpu:1, --mem=32G
+molab-slurm: not enforced on molab, ignored: --gres=gpu:1, --mem=32G
 setup 2, train 3, summarize 4
 ```
 
 ```bash
-molab squeue
+molab-slurm squeue
 ```
 
 ```text
@@ -240,10 +240,10 @@ on the box now; your laptop can sleep.
 ## 7. Read the logs
 
 A task's output file is wherever its `--output` pattern put it, and
-`molab tail` finds it by job id:
+`molab-slurm tail` finds it by job id:
 
 ```bash
-molab tail 2
+molab-slurm tail 2
 ```
 
 Once setup has finished, you should see one line per step (each step's own
@@ -257,34 +257,34 @@ fetch_inputs: ok
 
 * setup's output is `logs/setup-2.out`, from `%x-%j`; task 0's is
   `logs/train_3_0.out`, from `%x_%A_%a`.
-* `molab tail -f 3_0` streams a training task; `molab tail -f 3` means the
+* `molab-slurm tail -f 3_0` streams a training task; `molab-slurm tail -f 3` means the
   array's first task.
 * The patterns are SLURM's: `%A` array job id, `%a` task index, `%j` job id,
-  `%x` job name. On molab an array task has no id of its own, so `%j` is
+  `%x` job name. Here an array task has no id of its own, so `%j` is
   `3_0` for task 0 of job 3. Without `-o`, output goes to `slurm-%j.out`, or
   `slurm-%A_%a.out` for arrays.
 * `-e` sends stderr to a separate file; by default it goes to the output file.
 * Files that are not a task's output — the setup step logs, say — are one
-  `srun` away: `molab srun -D /marimo/myproject tail -n 20 logs/install_env.log`,
-  or `molab get /marimo/myproject/logs/install_env.log`.
+  `srun` away: `molab-slurm srun -D /marimo/myproject tail -n 20 logs/install_env.log`,
+  or `molab-slurm get /marimo/myproject/logs/install_env.log`.
 
 ## 8. Cancel
 
 ```bash
-molab scancel 3_2     # one task: if pending it never starts, if running its process tree is stopped
-molab scancel 3       # the whole array
-molab scancel --all   # everything pending or running
+molab-slurm scancel 3_2     # one task: if pending it never starts, if running its process tree is stopped
+molab-slurm scancel 3       # the whole array
+molab-slurm scancel --all   # everything pending or running
 ```
 
-`scancel` prints nothing when it works, and `molab: scancel: invalid job id 9`
+`scancel` prints nothing when it works, and `molab-slurm: scancel: invalid job id 9`
 for an id the box does not have. A running task gets SIGTERM, then SIGKILL
 after 10 seconds.
 
-Cancelling breaks an `afterok` chain. After `molab scancel 3`, with task 1
+Cancelling breaks an `afterok` chain. After `molab-slurm scancel 3`, with task 1
 running:
 
 ```bash
-molab sacct -j 3,4
+molab-slurm sacct -j 3,4
 ```
 
 ```text
@@ -301,8 +301,8 @@ JobID  JobName    State      ExitCode  Elapsed  Start                End
 `COMPLETED` prints its state, and the reason when there is one:
 
 ```console
-$ molab tail -f 4
-molab: 4 CANCELLED (DependencyNeverSatisfied (job 3 did not complete))
+$ molab-slurm tail -f 4
+molab-slurm: 4 CANCELLED (DependencyNeverSatisfied (job 3 did not complete))
 ```
 
 To carry on, run `bash submit.sh` again. Fold 0 is in the bucket and is
@@ -320,8 +320,8 @@ To run several different heavy jobs, chain them with `afterany`. In
 `submit.sh`, after the setup line:
 
 ```bash
-a=$(molab sbatch --parsable "${on_box[@]}" --dependency=afterok:"$setup" train_a.sh)
-b=$(molab sbatch --parsable "${on_box[@]}" --dependency=afterany:"$a" train_b.sh)
+a=$(molab-slurm sbatch --parsable "${on_box[@]}" --dependency=afterok:"$setup" train_a.sh)
+b=$(molab-slurm sbatch --parsable "${on_box[@]}" --dependency=afterany:"$a" train_b.sh)
 ```
 
 `afterany` starts `train_b.sh` when `train_a.sh` ends, whatever its state, so

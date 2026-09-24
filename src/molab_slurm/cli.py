@@ -1,10 +1,10 @@
-"""`molab` -- SLURM's commands for a molab box you cannot ssh into.
+"""`molab-slurm` -- SLURM's commands for a molab box you cannot ssh into.
 
-    molab init https://sb-....molab.run/ TOKEN --name gpu
-    molab sbatch --array=5-9 -D /marimo/repo workflows/SLURM/03.0.train_bias_model.sh
-    molab squeue | molab sacct -j 12 | molab scancel 12_7 | molab tail -f 12_5
-    molab srun -D /marimo/repo nvidia-smi
-    molab sinfo | molab put | molab get | molab open | molab keepalive
+    molab-slurm init https://sb-....molab.run/ TOKEN --name gpu
+    molab-slurm sbatch --array=5-9 -D /marimo/repo workflows/SLURM/03.0.train_bias_model.sh
+    molab-slurm squeue | molab-slurm sacct -j 12 | molab-slurm scancel 12_7 | molab-slurm tail -f 12_5
+    molab-slurm srun -D /marimo/repo nvidia-smi
+    molab-slurm sinfo | molab-slurm put | molab-slurm get | molab-slurm open | molab-slurm keepalive
 
 See README.md / docs/ for the model: every verb is a short request to the
 notebook kernel; jobs run under a detached runner on the box.
@@ -39,12 +39,12 @@ RUNNER_SRC = Path(__file__).with_name("runner.py").read_text()
 
 
 def die(msg: str, code: int = 1):
-    print(f"molab: {msg}", file=sys.stderr)
+    print(f"molab-slurm: {msg}", file=sys.stderr)
     sys.exit(code)
 
 
 def warn(msg: str):
-    print(f"molab: {msg}", file=sys.stderr)
+    print(f"molab-slurm: {msg}", file=sys.stderr)
 
 
 class Ctx:
@@ -271,7 +271,7 @@ def follow(ctx: Ctx, jid: int, idx: int | None, cancel_on_interrupt: bool = Fals
             warn(f"stopped following; job {jid} keeps running")
         return 130
     except RemoteError as e:
-        warn(f"{e}\nmolab: job {jid} is still on the box; resume with `molab tail -f {jid}`")
+        warn(f"{e}\nmolab-slurm: job {jid} is still on the box; resume with `molab-slurm tail -f {jid}`")
         return 255
 
 
@@ -285,7 +285,7 @@ def _elapsed(t: dict, now: float) -> float | None:
 
 
 def cmd_squeue(ctx: Ctx, argv: list[str]) -> int:
-    p = argparse.ArgumentParser(prog="molab squeue")
+    p = argparse.ArgumentParser(prog="molab-slurm squeue")
     p.add_argument("-j", "--jobs", help="comma-separated job ids")
     a = p.parse_args(argv)
     ids = [parse_jobid(x)[0] for x in a.jobs.split(",")] if a.jobs else None
@@ -314,7 +314,7 @@ def cmd_squeue(ctx: Ctx, argv: list[str]) -> int:
 
 
 def cmd_sacct(ctx: Ctx, argv: list[str]) -> int:
-    p = argparse.ArgumentParser(prog="molab sacct")
+    p = argparse.ArgumentParser(prog="molab-slurm sacct")
     p.add_argument("-j", "--jobs", help="comma-separated job ids [the newest --last]")
     p.add_argument("--last", type=int, default=20, help="newest N jobs when -j is not given [20]")
     p.add_argument("-s", "--state", help="only these states, e.g. FAILED,TIMEOUT")
@@ -337,7 +337,7 @@ def cmd_sacct(ctx: Ctx, argv: list[str]) -> int:
 
 
 def cmd_scancel(ctx: Ctx, argv: list[str]) -> int:
-    p = argparse.ArgumentParser(prog="molab scancel")
+    p = argparse.ArgumentParser(prog="molab-slurm scancel")
     p.add_argument("jobs", nargs="*", help="N or N_I")
     p.add_argument("--all", action="store_true", help="every job that is still pending or running")
     a = p.parse_args(argv)
@@ -356,7 +356,7 @@ def cmd_scancel(ctx: Ctx, argv: list[str]) -> int:
 
 
 def cmd_tail(ctx: Ctx, argv: list[str]) -> int:
-    p = argparse.ArgumentParser(prog="molab tail", description="Show a job's output file (slurm-%j.out or --output).")
+    p = argparse.ArgumentParser(prog="molab-slurm tail", description="Show a job's output file (slurm-%j.out or --output).")
     p.add_argument("job", help="N or N_I (for an array job, N means its first task)")
     p.add_argument("-f", "--follow", action="store_true", help="keep streaming until the task ends")
     p.add_argument("-n", "--lines", type=int, default=None, help="only the last N lines")
@@ -415,7 +415,7 @@ def describe_box(ctx: Ctx) -> dict:
 
 
 def cmd_sinfo(ctx: Ctx, argv: list[str]) -> int:
-    argparse.ArgumentParser(prog="molab sinfo").parse_args(argv)
+    argparse.ArgumentParser(prog="molab-slurm sinfo").parse_args(argv)
     describe_box(ctx)
     active = [j for j in ctx.jobs(active_only=True) if not j.get("missing")]
     running = sum(1 for j in active for t in j["tasks"] if t.get("state") == "RUNNING")
@@ -424,7 +424,7 @@ def cmd_sinfo(ctx: Ctx, argv: list[str]) -> int:
 
 
 def cmd_init(argv: list[str], session: str | None) -> int:
-    p = argparse.ArgumentParser(prog="molab init", description="Save a box: its notebook URL and token.")
+    p = argparse.ArgumentParser(prog="molab-slurm init", description="Save a box: its notebook URL and token.")
     p.add_argument("url", help="the notebook's URL, e.g. https://sb-....molab.run/")
     p.add_argument("token", help="the token from molab's 'connect' snippet (code execution on the box!)")
     p.add_argument("--name", default="default", help="what to call this box [default]")
@@ -444,7 +444,7 @@ def cmd_init(argv: list[str], session: str | None) -> int:
 
 
 def cmd_boxes(argv: list[str]) -> int:
-    argparse.ArgumentParser(prog="molab boxes").parse_args(argv)
+    argparse.ArgumentParser(prog="molab-slurm boxes").parse_args(argv)
     cfg = config.load()
     rows = [("", "NAME", "URL", "CPUS", "WORKDIR")]
     for name, b in sorted(cfg["boxes"].items()):
@@ -457,7 +457,7 @@ def cmd_boxes(argv: list[str]) -> int:
 
 
 def cmd_put(ctx: Ctx, argv: list[str]) -> int:
-    p = argparse.ArgumentParser(prog="molab put", description="Copy a small local file to the box.")
+    p = argparse.ArgumentParser(prog="molab-slurm put", description="Copy a small local file to the box.")
     p.add_argument("local")
     p.add_argument("remote", help="path, or an existing directory, on the box")
     a = p.parse_args(argv)
@@ -507,7 +507,7 @@ def _get(ctx: Ctx, remote: str, dst: Path) -> Path:
 
 
 def cmd_get(ctx: Ctx, argv: list[str]) -> int:
-    p = argparse.ArgumentParser(prog="molab get", description="Copy a small file from the box.")
+    p = argparse.ArgumentParser(prog="molab-slurm get", description="Copy a small file from the box.")
     p.add_argument("remote")
     p.add_argument("local", nargs="?", default=".")
     a = p.parse_args(argv)
@@ -516,7 +516,7 @@ def cmd_get(ctx: Ctx, argv: list[str]) -> int:
 
 
 def cmd_open(ctx: Ctx, argv: list[str]) -> int:
-    p = argparse.ArgumentParser(prog="molab open", description="Fetch files and open them locally (Preview for png/pdf).")
+    p = argparse.ArgumentParser(prog="molab-slurm open", description="Fetch files and open them locally (Preview for png/pdf).")
     p.add_argument("remote", nargs="+")
     p.add_argument("--no-open", action="store_true", help="fetch into the cache only")
     a = p.parse_args(argv)
@@ -534,7 +534,7 @@ def cmd_open(ctx: Ctx, argv: list[str]) -> int:
 
 def cmd_keepalive(ctx: Ctx, argv: list[str]) -> int:
     p = argparse.ArgumentParser(
-        prog="molab keepalive",
+        prog="molab-slurm keepalive",
         description="Touch the kernel on a timer. Whether molab's idle timer counts "
         "kernel API traffic is not documented; this is the activity molab-slurm can generate.",
     )
@@ -593,11 +593,11 @@ COMMANDS = {
 
 
 def usage() -> str:
-    lines = [f"molab {__version__} -- SLURM's commands for a molab box", "",
-             "usage: molab [--box NAME] [--session ID] <command> [args]", "",
+    lines = [f"molab-slurm {__version__} -- SLURM's commands for a molab box", "",
+             "usage: molab-slurm [--box NAME] [--session ID] <command> [args]", "",
              "  init       save a box (notebook URL + token)", "  boxes      list saved boxes"]  # fmt: skip
     lines += [f"  {k:<10} {v[0]}" for k, v in COMMANDS.items()]
-    lines += ["", "`molab <command> -h` for each command's options."]
+    lines += ["", "`molab-slurm <command> -h` for each command's options."]
     return "\n".join(lines)
 
 

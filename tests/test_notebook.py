@@ -104,10 +104,10 @@ def test_server_token_none(tmp_path):
 
 def test_command_quotes_and_hides_the_token():
     cmd, shown = notebook._command("https://sb-1.sb.molab.run/", "a'b", ["--name", "gpu"])
-    assert cmd == "molab init https://sb-1.sb.molab.run/ 'a'\"'\"'b' --name gpu"
-    assert shown == "molab init https://sb-1.sb.molab.run/ <token hidden> --name gpu"
+    assert cmd == "molab-slurm init https://sb-1.sb.molab.run/ 'a'\"'\"'b' --name gpu"
+    assert shown == "molab-slurm init https://sb-1.sb.molab.run/ <token hidden> --name gpu"
     assert notebook._command("", "tok", []) == ("", "")
-    assert notebook._command("https://x/", None, [])[0] == "molab init https://x/ <token>"
+    assert notebook._command("https://x/", None, [])[0] == "molab-slurm init https://x/ <token>"
 
 
 def _widget(monkeypatch, **kwargs):
@@ -127,7 +127,7 @@ def test_widget_fills_in_once_the_browser_reports_its_address(monkeypatch):
     assert (w.url, w.command, w.shown) == ("", "", "")
     w._handle_custom_msg({"page": PAGE}, [])  # what the browser sends on render
     assert w.url == "https://sb-0123456789abcdef.sb.molab.run/"
-    want = "molab init https://sb-0123456789abcdef.sb.molab.run/ S3CRET --name gpu --cpus 4 --no-default"
+    want = "molab-slurm init https://sb-0123456789abcdef.sb.molab.run/ S3CRET --name gpu --cpus 4 --no-default"
     assert w.command == want
     assert sent == [{"command": want}]
     assert w.shown == want.replace("S3CRET", "<token hidden>")

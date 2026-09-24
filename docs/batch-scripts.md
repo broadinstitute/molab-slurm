@@ -5,7 +5,7 @@ nav_order: 7
 
 # Batch scripts
 
-A script written for SLURM runs under `molab sbatch` as it is: same
+A script written for SLURM runs under `molab-slurm sbatch` as it is: same
 `#SBATCH` header, same `SLURM_*` variables, same array arithmetic. What it
 cannot get is software the box does not have — a `module load` or a conda
 environment from your cluster — so that part is up to the box
@@ -13,10 +13,10 @@ environment from your cluster — so that part is up to the box
 
 ## How the script is run
 
-* The script is a path **on the box**. molab reads it there, never uploads it.
+* The script is a path **on the box**. molab-slurm reads it there, never uploads it.
 * It runs with its own shebang interpreter (`#!/bin/bash`, `#!/usr/bin/env python3`, ...), or `bash` if it has none.
 * The working directory is `-D`/`--chdir`, else `#SBATCH --chdir`, else the
-  box's `--workdir` (set at `molab init`, default `/marimo`). **Your laptop's
+  box's `--workdir` (set at `molab-slurm init`, default `/marimo`). **Your laptop's
   current directory means nothing on the box.**
 * Arguments after the script name are passed to it.
 * stdin is `/dev/null`; there is no terminal.
@@ -63,7 +63,7 @@ not, so `%j` in an output pattern expands to `A_a` for array tasks.
 Jobs get the box's environment — **minus the notebook's own Python**. The
 marimo kernel runs from a virtualenv (`/tmp/uv-venv`) and exports
 `PYTHONPATH`/`VIRTUAL_ENV` for it; anything started from the kernel would
-inherit them and import the notebook's packages instead of its own. molab
+inherit them and import the notebook's packages instead of its own. molab-slurm
 removes those variables and takes that venv off `PATH` before starting a job.
 Pass `--notebook-env` to keep them.
 
@@ -77,7 +77,7 @@ To set up the environment a script expects — the equivalent of your cluster's
 `--rc`:
 
 ```bash
-molab sbatch --rc workflows/molab/env.sh --array=5-9 step.sh
+molab-slurm sbatch --rc workflows/molab/env.sh --array=5-9 step.sh
 ```
 
 `--rc` is sourced by bash before the script starts; if it fails, the job fails.
@@ -89,7 +89,7 @@ molab sbatch --rc workflows/molab/env.sh --array=5-9 step.sh
 | exits 0 | `COMPLETED` | `0:0` |
 | exits non-zero | `FAILED` | `N:0` |
 | is killed by a signal | `FAILED` | `0:SIG` |
-| is SIGKILLed by something other than molab | `OUT_OF_MEMORY` | `0:9` — an inference: on molab that is almost always the kernel's OOM killer, and the reason field says so |
+| is SIGKILLed by something other than molab-slurm | `OUT_OF_MEMORY` | `0:9` — an inference: on molab that is almost always the kernel's OOM killer, and the reason field says so |
 | is cancelled | `CANCELLED` | usually `0:15` |
 | exceeds `--time` | `TIMEOUT` | |
 | loses its runner (box restarted) | `NODE_FAIL` | |

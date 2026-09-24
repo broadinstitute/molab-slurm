@@ -16,6 +16,8 @@ uv tool install git+https://github.com/broadinstitute/molab-slurm
 pipx install git+https://github.com/broadinstitute/molab-slurm
 ```
 
+Either one puts a single command, `molab-slurm`, on your `PATH`.
+
 From a checkout, without installing:
 
 ```bash
@@ -29,7 +31,7 @@ When you open a molab notebook and ask it to connect an agent, molab shows a
 snippet with the notebook's URL and a token. Save both:
 
 ```bash
-molab init https://sb-0123456789abcdef.sb.molab.run/ <token> --name gpu
+molab-slurm init https://sb-0123456789abcdef.sb.molab.run/ <token> --name gpu
 ```
 
 Or let the session write that line for you. In a cell of its notebook:
@@ -39,7 +41,7 @@ import molab_slurm as mos
 mos.init_command(name="gpu")
 ```
 
-shows `molab init <url> <token> --name gpu` for this session, the token hidden, with a copy button
+shows `molab-slurm init <url> <token> --name gpu` for this session, the token hidden, with a copy button
 (`--cpus`, `--workdir` and `--no-default` are `cpus=`, `workdir=` and `no_default=True`). The token comes from
 the marimo server's command line, the URL from your browser -- the kernel only ever sees molab's internal proxy
 address, so the line fills in once the notebook is open in a browser. This is the one part of molab-slurm that
@@ -69,22 +71,22 @@ Options:
 | `--no-default` | | save without making it the default |
 
 A session's URL changes whenever molab recreates it, so run `init` again with
-the new URL and the same `--name`. `molab boxes` lists what is saved; the
+the new URL and the same `--name`. `molab-slurm boxes` lists what is saved; the
 default is marked `*`.
 
 ## Choosing a box per command
 
 In order of precedence:
 
-1. `molab --box NAME <command>`
+1. `molab-slurm --box NAME <command>`
 2. `MOLAB_URL` and `MOLAB_TOKEN` in the environment (no config file needed)
 3. `MOLAB_BOX=NAME`
-4. the default from `molab init`
+4. the default from `molab-slurm init`
 
 ## The token is a shell on the box
 
 Anyone holding the token can run arbitrary code in the notebook's kernel, as
-the user it runs as (root on molab). `molab init` writes it to
+the user it runs as (root on molab). `molab-slurm init` writes it to
 `~/.config/molab/config.json` with mode 600. Prefer that, or `MOLAB_TOKEN`, to
 passing it on a command line where `ps` can see it, and never commit the
 config file.

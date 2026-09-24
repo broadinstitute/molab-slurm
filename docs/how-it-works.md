@@ -6,14 +6,14 @@ nav_order: 9
 # How it works
 
 ```text
- your laptop                         molab box (gVisor sandbox)
- ───────────                         ──────────────────────────
- molab sbatch ──HTTPS──► notebook server ──► kernel scratchpad
-                        POST /api/kernel/execute     │ writes jobs/<id>/job.json
-                                                     │ starts ──► runner.py <job dir>   (detached)
- molab squeue ──HTTPS──► ... reads jobs/*/tasks/*.json             │ starts, watches, stops
- molab scancel ─HTTPS──► ... writes jobs/<id>/cancel               ▼
-                                                            your script (one process tree per task)
+ your laptop                               molab box (gVisor sandbox)
+ ───────────                               ──────────────────────────
+ molab-slurm sbatch ──HTTPS──► notebook server ──► kernel scratchpad
+                              POST /api/kernel/execute     │ writes jobs/<id>/job.json
+                                                           │ starts ──► runner.py <job dir>   (detached)
+ molab-slurm squeue ──HTTPS──► ... reads jobs/*/tasks/*.json             │ starts, watches, stops
+ molab-slurm scancel ─HTTPS──► ... writes jobs/<id>/cancel               ▼
+                                                                  your script (one process tree per task)
 ```
 
 ## The only way in
@@ -21,7 +21,7 @@ nav_order: 9
 A molab box accepts no inbound connections except its marimo notebook
 server. That server exposes `POST /api/kernel/execute`, which runs Python in
 the kernel's scratchpad and streams stdout back as server-sent events — the
-same API the marimo-pair skill uses. Every molab command is one or a few such
+same API the marimo-pair skill uses. Every molab-slurm command is one or a few such
 requests: a short snippet, parameters passed as JSON (never spliced into the
 code as text), one marked JSON line back.
 
@@ -47,19 +47,19 @@ kernel, and the training loop is what stops.
 
 molab-slurm keeps long work out of the kernel. A job is a separate process
 tree, started by the runner with `start_new_session=True`, so a kernel
-interrupt never reaches it. Every molab call is a short snippet that reads or
-writes files under `/marimo/.molab` and returns in about a second, so there is
-nothing long in the kernel to interrupt. Agents and people can poll `squeue`,
-`tail` and `sacct` as often as they like while jobs run.
+interrupt never reaches it. Every molab-slurm call is a short snippet that
+reads or writes files under `/marimo/.molab` and returns in about a second, so
+there is nothing long in the kernel to interrupt. Agents and people can poll
+`squeue`, `tail` and `sacct` as often as they like while jobs run.
 
-One thing still holds: molab's own calls go through the same kernel. A
-long-running **notebook cell** delays them, and a molab call that times out
-behind it can interrupt that cell. Run long work with `molab sbatch`, not in a
-cell.
+One thing still holds: molab-slurm's own calls go through the same kernel.
+A long-running **notebook cell** delays them, and a molab-slurm call that
+times out behind it can interrupt that cell. Run long work with
+`molab-slurm sbatch`, not in a cell.
 
 ## The runner
 
-`molab sbatch` builds a job spec on your machine — `#SBATCH` lines parsed,
+`molab-slurm sbatch` builds a job spec on your machine — `#SBATCH` lines parsed,
 command-line options merged, output patterns chosen — and one request on the
 box then:
 
@@ -79,7 +79,7 @@ atomically, and heartbeats `runner.json` every 5 seconds.
 Under gVisor the notebook kernel sees a **different PID namespace** from the
 processes it starts: the PID `subprocess.Popen` hands back is not one that
 `ps` or `kill` on the box can find, and process groups showed up as `1`. So
-the kernel never signals anything. `molab scancel` drops a `cancel` (or
+the kernel never signals anything. `molab-slurm scancel` drops a `cancel` (or
 `cancel.<index>`) file; the runner, which shares a namespace with its
 children, sees it within a second, walks its task's process tree **parents
 first**, sends SIGTERM, then SIGKILL after 10 seconds, and records

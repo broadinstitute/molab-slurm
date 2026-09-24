@@ -1,4 +1,4 @@
-"""Inside a molab notebook: the `molab init` command that connects this session.
+"""Inside a molab notebook: the `molab-slurm init` command that connects this session.
 
 Every new molab session has a new URL and token. Both are known inside the session, just not in one place:
 the token is on the marimo server's command line, and the public URL only in the browser -- the kernel sees
@@ -7,7 +7,7 @@ molab's internal proxy host, never the address you opened. `init_command()` puts
     import molab_slurm as mos
     mos.init_command(name="gpu")
 
-shows `molab init <url> <token> --name gpu`, token hidden, with a copy button. It needs anywidget
+shows `molab-slurm init <url> <token> --name gpu`, token hidden, with a copy button. It needs anywidget
 (`pip install anywidget`, or the `molab-slurm[notebook]` extra; molab's notebooks already have it). The rest of molab-slurm stays
 stdlib-only, and importing this module imports nothing else.
 """
@@ -103,7 +103,7 @@ def _command(url: str | None, token: str | None, extra: list[str]) -> tuple[str,
     """(command, command with the token hidden); both "" until the URL is known."""
     if not url:
         return "", ""
-    head, tail = shlex.join(["molab", "init", url]), shlex.join(extra)
+    head, tail = shlex.join(["molab-slurm", "init", url]), shlex.join(extra)
     parts = [head, shlex.quote(token) if token else "<token>"] + ([tail] if tail else [])
     shown = [head, _HIDDEN if token else "<token>"] + ([tail] if tail else [])
     return " ".join(parts), " ".join(shown)
@@ -193,7 +193,7 @@ def _init_widget():
         raise ImportError("init_command() needs anywidget: pip install anywidget") from e
 
     class InitCommand(anywidget.AnyWidget):
-        """`molab init <url> <token>` for the session this notebook runs in.
+        """`molab-slurm init <url> <token>` for the session this notebook runs in.
 
         Synced state (`url`, `shown`, `note`) holds nothing secret; the full command is the plain attribute
         `command`, and reaches the browser only as a message.
@@ -242,9 +242,9 @@ def _init_widget():
 def init_command(
     name: str | None = None, *, cpus: int | None = None, workdir: str | None = None, no_default: bool = False
 ):
-    """A widget showing the `molab init` command that connects this session; display it in a notebook cell.
+    """A widget showing the `molab-slurm init` command that connects this session; display it in a notebook cell.
 
-    `name`, `cpus`, `workdir` and `no_default` become `molab init`'s --name, --cpus, --workdir and --no-default.
+    `name`, `cpus`, `workdir` and `no_default` become `molab-slurm init`'s --name, --cpus, --workdir and --no-default.
     The command is complete once the notebook is open in a browser (the only place its public URL is known);
     the widget's `.url` and `.command` then hold it for Python too.
     """

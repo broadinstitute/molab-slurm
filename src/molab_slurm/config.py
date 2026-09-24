@@ -1,10 +1,10 @@
 """Which box to talk to: named boxes in ~/.config/molab/config.json (mode 600).
 
-    molab init https://sb-....molab.run/ TOKEN --name gpu   # saved, and the default
-    molab --box cpu squeue                                  # any other saved box
+    molab-slurm init https://sb-....molab.run/ TOKEN --name gpu   # saved, and the default
+    molab-slurm --box cpu squeue                                  # any other saved box
 
 A molab session's URL changes every time the session is recreated, so
-`molab init` is run once per session; the name is what scripts refer to.
+`molab-slurm init` is run once per session; the name is what scripts refer to.
 MOLAB_URL + MOLAB_TOKEN in the environment override the file entirely, and
 MOLAB_BOX picks a saved box, for one-off use.
 """
@@ -66,7 +66,7 @@ def resolve(name: str | None = None) -> tuple[str, dict]:
     cfg = load()
     name = name or os.environ.get("MOLAB_BOX") or cfg["default"]
     if not name:
-        raise ConfigError("no box configured: run `molab init <notebook-url> <token>` first")
+        raise ConfigError("no box configured: run `molab-slurm init <notebook-url> <token>` first")
     if name not in cfg["boxes"]:
         known = ", ".join(sorted(cfg["boxes"])) or "none"
         raise ConfigError(f"no box named {name!r} (known: {known})")

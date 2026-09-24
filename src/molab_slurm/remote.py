@@ -3,7 +3,7 @@
 There is no ssh into a molab sandbox. The open notebook's server exposes
 `POST /api/kernel/execute`, which runs Python in the kernel's scratchpad and
 streams stdout/stderr back as server-sent events (the API the marimo-pair
-skill uses). Every molab command is a short Python snippet sent this way;
+skill uses). Every molab-slurm command is a short Python snippet sent this way;
 the snippet prints one marked JSON line, which is the reply.
 
 Keep calls SHORT. A request that runs for minutes has come back empty (the

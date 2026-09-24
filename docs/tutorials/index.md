@@ -9,7 +9,7 @@ has_toc: false
 
 Three walk-throughs, each starting where the last one ends. They assume a molab
 account that can start GPU sessions and a laptop with Python ≥ 3.9. Commands
-that start with `molab` run on your laptop; everything they start runs on the box.
+that start with `molab-slurm` run on your laptop; everything they start runs on the box.
 
 1. [Your first job](first-job.md) — install the CLI, connect a session from
    inside its own notebook, check the GPU, run a command with `srun` and a
