@@ -1,5 +1,8 @@
 # molab-slurm
 
+[![CI](https://github.com/broadinstitute/molab-slurm/actions/workflows/ci.yml/badge.svg)](https://github.com/broadinstitute/molab-slurm/actions/workflows/ci.yml)
+[![Docs](https://github.com/broadinstitute/molab-slurm/actions/workflows/pages.yml/badge.svg)](https://broadinstitute.github.io/molab-slurm/)
+
 SLURM's commands — `sbatch`, `srun`, `squeue`, `sacct`, `scancel` — for a
 molab box (marimo's cloud notebooks) you cannot ssh into.
 

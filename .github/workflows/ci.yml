@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      # pinned: ruff's default rule set changes between releases
+      - run: uvx ruff@0.16.8 check
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.9", "3.13"]   # the oldest supported Python, and the one molab boxes run
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      # the runner is run for real, as a subprocess; the SIGTERM test only runs on Linux
+      - run: uv run --no-project --python ${{ matrix.python }} --with pytest --with anywidget python -m pytest -q
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - run: uv build
+      - name: The wheel installs one command, molab-slurm, and no `molab`
+        run: |
+          unzip -p dist/*.whl '*/entry_points.txt'
+          uv tool install dist/*.whl
+          molab-slurm --help
+          if command -v molab; then echo "::error::an old 'molab' command is installed"; exit 1; fi
+      - name: Importing the package needs nothing beyond the standard library
+        run: uv run --no-project --isolated --with dist/*.whl python -c "import sys, molab_slurm, molab_slurm.cli; assert not {'anywidget', 'traitlets'} & set(sys.modules)"
