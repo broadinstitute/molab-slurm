@@ -43,7 +43,8 @@ on the box.
   See [how it works](docs/how-it-works.md#why-work-never-runs-in-the-kernel).
 * **Check jobs, do not poll them.** Every call is still a request to the
   notebook kernel, and sessions have ended while the box was polled (the cause
-  is not confirmed). Submit, wait, and check once when the job should be done;
+  is not confirmed). Submit, then `molab-slurm wait --after <run time> ID`, which
+  sits out the run time on your machine and checks every 4 minutes after that;
   agents should read [For AI agents](docs/ai-agents.md) first.
 * **Honest about what it is not.** `--mem`, `--gres`, `--partition` and the
   rest are accepted and reported as ignored — there is no scheduler to
@@ -78,7 +79,7 @@ The token comes from the molab "connect" snippet — or, in a cell of the
 session's notebook, `import molab_slurm as mos; mos.init_command(name="gpu")` shows the whole `molab-slurm init`
 line with a copy button (the package has to be in the notebook's environment; see
 [docs/install.md](docs/install.md#connect-a-box)). **The token is code execution on the box** — treat it like an ssh key. `molab-slurm init` stores it in
-`~/.config/molab/config.json` with mode 600.
+`~/.config/molab-slurm/config.json` with mode 600.
 
 ## Development
 

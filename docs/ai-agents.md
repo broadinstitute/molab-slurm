@@ -14,7 +14,7 @@ A molab-slurm command is not a cheap status query. Each one lists the notebook
 server's sessions (`GET /api/sessions`, skipped when you pass `--session`) and
 then POSTs one or more Python snippets to `/api/kernel/execute`, which run in
 the **notebook kernel's scratchpad** (see [How it works](how-it-works.md)).
-`squeue`, `sacct`, `tail` and `put` are all kernel executions.
+`squeue`, `sacct`, `tail`, `put` and each of `wait`'s checks are all kernel executions.
 
 ## Do not poll
 
@@ -30,24 +30,27 @@ nothing.
 
 So:
 
-1. **No polling loops.** No `watch`, no background loops or monitors that call
-   `squeue`, `sacct` or `tail` every few seconds or minutes.
+1. **No polling loops of your own.** No `watch`, no background loops or
+   monitors that call `squeue`, `sacct` or `tail`. To block until a job ends,
+   use `molab-slurm wait`, which is built to call the box as little as possible.
 2. **No streaming for long jobs.** `molab-slurm srun`, `sbatch --follow` and
    `tail -f` check the job's state and read its output (two or more calls)
-   about every second, for as long as it runs. Use them only for commands that
-   finish within a minute or so; submit anything longer with `sbatch`.
-3. **Submit, then check once when the job should be done.** Estimate the run
-   time and wait on your own machine (a local timer or `sleep` does not touch
-   the box). Then make one check:
+   every second at first and every 10 seconds after about a minute, for as
+   long as it runs. Use them only for commands that finish within a minute or
+   so; submit anything longer with `sbatch`.
+3. **Submit, wait for the expected run time, then check.** Estimate the run
+   time and let `wait` sit out that time on your own machine before its first
+   check (it makes no calls meanwhile). After that it makes one status call
+   every 4 minutes until the job ends, and exits with the job's exit code:
 
    ```bash
-   molab-slurm sacct -j 12
-   molab-slurm tail -n 30 12      # only the end of the output, not the whole file
+   molab-slurm wait --after 2h 12 && molab-slurm tail -n 30 12   # only the end of the output
+   molab-slurm sacct -j 12                                       # if it failed
    ```
 
-   If the job is still running, estimate the rest and wait again. An early
-   check to catch a quick failure (a minute or two after a job starts) is fine;
-   a check every few minutes for hours is polling.
+   An early check to catch a quick failure (a minute or two after a job
+   starts) is fine: `molab-slurm sacct -j 12` once, then `wait`. Do not pass
+   `--every` below its default.
 4. **One job per step.** Chain steps with `--dependency=afterok:<id>` (or
    `afterany`) instead of one long script, so a single `sacct` shows how far
    things got and each step's results can be collected as soon as its job
@@ -58,9 +61,11 @@ So:
 6. **Copy results off the box as each job finishes.** A session can end at any
    time and cannot be brought back; whatever is only on the box is lost with
    it.
-7. **At most one `keepalive`, at its default interval or longer** (every 4
-   minutes). It is a call on a timer too, so run it only if you need it, and
-   not one per agent or script.
+7. **At most one `keepalive` or `wait` running at a time, at its default
+   interval or longer** (every 4 minutes). Both are a call on a timer, so run
+   one only if you need it, and not one per agent, script or job: wait for the
+   last job of a dependency chain, or for a whole array with its bare id. A
+   running `wait` already does what `keepalive` does.
 
 ## What gVisor misreports
 

@@ -53,7 +53,7 @@ needs anywidget, which molab notebooks have; elsewhere `pip install anywidget`. 
 what the box has:
 
 ```text
-saved box 'gpu' to ~/.config/molab/config.json (default)
+saved box 'gpu' to ~/.config/molab-slurm/config.json (default)
 box       gpu  (https://sb-0123456789abcdef.sb.molab.run/)
 host      a1b2c3d4-...-xyz12  python 3.13.11
 cpus      4 (configured; the box reports the host's count)
@@ -87,6 +87,6 @@ In order of precedence:
 
 Anyone holding the token can run arbitrary code in the notebook's kernel, as
 the user it runs as (root on molab). `molab-slurm init` writes it to
-`~/.config/molab/config.json` with mode 600. Prefer that, or `MOLAB_TOKEN`, to
+`~/.config/molab-slurm/config.json` with mode 600. Prefer that, or `MOLAB_TOKEN`, to
 passing it on a command line where `ps` can see it, and never commit the
 config file.

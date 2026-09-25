@@ -21,7 +21,7 @@ uv tool install git+https://github.com/broadinstitute/molab-slurm
 molab-slurm --version
 ```
 
-You should see the version number (`0.1.0` as of this writing). molab-slurm
+You should see the version number (`0.2.0` as of this writing). molab-slurm
 is not on PyPI yet; the git URL is the install (`pipx install
 git+https://github.com/broadinstitute/molab-slurm` works too). Nothing gets
 installed on the box.
@@ -91,7 +91,7 @@ molab-slurm init https://sb-0123456789abcdef.sb.molab.run/ <token> --name gpu
 You should see:
 
 ```text
-saved box 'gpu' to /Users/me/.config/molab/config.json (default)
+saved box 'gpu' to /Users/me/.config/molab-slurm/config.json (default)
 box       gpu  (https://sb-0123456789abcdef.sb.molab.run/)
 host      a1b2c3d4-...-xyz12  python 3.13.11
 cpus      4 (configured; the box reports the host's count)
@@ -224,9 +224,10 @@ stops following — `molab-slurm: stopped following; job 3 keeps running` — an
 running it again streams the file from the beginning. `molab-slurm tail -n 5 3`
 prints the last five lines and returns.
 
-`tail -f`, like `srun`, asks the box for news about every second while the
+`tail -f`, like `srun`, asks the box for news every few seconds while the
 job runs. That is fine for this one-minute job. For a job that runs for hours,
-check it once when it should be done, with `molab-slurm sacct -j ID` and
+use `molab-slurm wait --after 3h ID`, which makes no calls for the first three
+hours and then one every 4 minutes until the job ends, then
 `molab-slurm tail -n 20 ID`, and do not leave `tail -f` or
 `watch molab-slurm squeue` running: sessions have ended while the box was
 polled like that ([For AI agents](../ai-agents.md)).

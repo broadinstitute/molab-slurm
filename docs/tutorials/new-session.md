@@ -41,7 +41,7 @@ Lost — everything that was on the box:
 
 Kept — everything off the box:
 
-* **Your saved box** in `~/.config/molab/config.json`. Its URL and token are
+* **Your saved box** in `~/.config/molab-slurm/config.json`. Its URL and token are
   stale; the `--cpus` and `--workdir` you gave it stay when you `init` again
   under the same name.
 * **The bucket**, with every fold whose job reached its copy step, and the

@@ -40,6 +40,7 @@ JobID  JobName   State      ExitCode  Elapsed  Start                End
 | `molab-slurm srun` | runs a command and streams its output; Ctrl-C cancels it; the exit code is the command's |
 | `molab-slurm squeue` / `sacct` | SLURM-shaped tables, including collapsed pending arrays |
 | `molab-slurm scancel` | cancels a job or one array task, and the whole process tree with it |
+| `molab-slurm wait` | blocks until a job ends, one status call every 4 minutes, and exits with its code |
 | `molab-slurm tail` | a job's output file: `-n N` for the end, `-f` to stream a short job |
 | `molab-slurm sinfo` | what the box really has — including whether the GPU is attached |
 | `molab-slurm put` / `get` / `open` | small files both ways; `open` shows a PNG or PDF in Preview |

@@ -54,9 +54,10 @@ there is nothing long in the kernel to interrupt.
 That does not make calls free. Each one is still a request to the notebook
 server and an execution in the kernel, and sessions have ended while the box
 was being polled (`watch -n 10 molab-slurm squeue` plus an agent's loop); the
-cause is not confirmed. Check a job when it should be done instead of in a
-loop. `srun`, `sbatch --follow` and `tail -f` make two or more calls about
-every second while the job runs, so keep them to short commands. See
+cause is not confirmed. Check a job when it should be done, or block on it with
+`molab-slurm wait`, instead of in a loop. `srun`, `sbatch --follow` and
+`tail -f` make two or more calls every 1 to 10 seconds while the job runs, so
+keep them to short commands. See
 [For AI agents](ai-agents.md).
 
 One thing still holds: molab-slurm's own calls go through the same kernel.

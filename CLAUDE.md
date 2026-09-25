@@ -14,14 +14,15 @@ Full rules and the reasons: `docs/ai-agents.md`. In short:
   `sacct` or `tail`. Sessions have ended (`HTTP 410`, no reason shown, not restorable) while the box was
   being polled; a later session running jobs without polling has not ended so far. The cause is not
   confirmed: treat it as an observation, and still do not poll.
-- `srun`, `sbatch --follow` and `tail -f` make two or more calls about every second while the job runs: use
+- `srun`, `sbatch --follow` and `tail -f` make two or more calls every 1-10 seconds while the job runs: use
   them only for commands that finish within a minute or so. Submit anything longer with `sbatch`.
-- Submit, wait on your own machine for the expected run time, then check once:
-  `molab-slurm sacct -j ID` and `molab-slurm tail -n 30 ID` (never a full `tail` of a growing log).
+- Submit, then block with `molab-slurm wait --after <expected run time> ID` (no calls until then, then one
+  status call every 4 minutes; exits with the job's code), then `molab-slurm tail -n 30 ID` (never a full
+  `tail` of a growing log) and `molab-slurm sacct -j ID` if it failed.
 - One job per step, chained with `--dependency=afterok:ID` / `afterany:ID`; collect each step's results as
   soon as its job ends, and copy them off the box (a dead session takes everything on it).
 - Upload many files as one archive (`put` once, one call per 512 KB; unpack with one short `srun`).
-- `keepalive` no more often than its default (every 4 minutes).
+- At most one `keepalive` or `wait` at a time, no more often than their default (every 4 minutes).
 - gVisor misreports resources: memory (`free` shows far more than the session has) and CPUs
   (`nproc` / `os.cpu_count()` give the host's count). Size thread pools and memory from the real numbers.
   Jobs get `SLURM_CPUS_PER_TASK`, and `OMP_NUM_THREADS` / `NUMBA_NUM_THREADS` unless already set, from `-c N`

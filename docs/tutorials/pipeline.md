@@ -128,7 +128,7 @@ exit "$status"
 It uses `$BUCKET` and the pixi `PATH`, so it runs with `--rc ./env.sh` like
 every other job. To try it on its own, `molab-slurm srun -D /marimo/myproject --rc
 ./env.sh bash setup.sh` streams it to your terminal — but Ctrl-C there
-cancels it, and `srun` calls the box about every second until it ends. A setup
+cancels it, and `srun` calls the box every few seconds until it ends. A setup
 that takes more than a minute or so belongs in `sbatch`, which step 6 does.
 
 ## 4. Write the training array
@@ -260,8 +260,8 @@ fetch_inputs: ok
   `logs/train_3_0.out`, from `%x_%A_%a`.
 * `molab-slurm tail -n 20 3_0` shows the end of a training task's output;
   `molab-slurm tail -n 20 3` means the array's first task. `tail -f` would
-  stream it, but it calls the box about every second for as long as the task
-  runs: check a training task when it should be done instead
+  stream it, but it calls the box every few seconds for as long as the task
+  runs: `molab-slurm wait 3_0`, then `tail -n 20 3_0`, instead
   ([For AI agents](../ai-agents.md)).
 * The patterns are SLURM's: `%A` array job id, `%a` task index, `%j` job id,
   `%x` job name. Here an array task has no id of its own, so `%j` is

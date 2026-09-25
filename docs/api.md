@@ -22,7 +22,7 @@ command reads.
 | name | what it is |
 |---|---|
 | `molab_slurm.init_command` | the widget below; the package's only export (`__all__`), also `molab_slurm.notebook.init_command` |
-| `molab_slurm.__version__` | the version string, `"0.1.0"` |
+| `molab_slurm.__version__` | the version string, `"0.2.0"` |
 | `molab_slurm.notebook.connect_url` | the notebook server's URL, from the address the browser shows |
 | `molab_slurm.notebook.server_token` | the marimo server's token, from its command line |
 
@@ -216,7 +216,7 @@ marimo saves into HTML and PDF exports: that state is `url`, `shown` and
 browser's address is not kept either, because on molab it embeds the token
 as well.
 
-Keep it where `molab-slurm init` puts it, `~/.config/molab/config.json` with mode
+Keep it where `molab-slurm init` puts it, `~/.config/molab-slurm/config.json` with mode
 600, or in `MOLAB_TOKEN`, and never commit it.
 
 ## Configuration
@@ -225,10 +225,13 @@ What the `molab-slurm` command reads, for scripts that run it.
 
 ### The config file
 
-`molab-slurm init` saves boxes to `~/.config/molab/config.json`
-(`$XDG_CONFIG_HOME/molab/config.json` when that is set). It writes a temporary
+`molab-slurm init` saves boxes to `~/.config/molab-slurm/config.json`
+(`$XDG_CONFIG_HOME/molab-slurm/config.json` when that is set). It writes a temporary
 file, sets it to mode 600 and renames it into place; the directory keeps its
-usual permissions.
+usual permissions. A config saved by an older molab-slurm, in
+`~/.config/molab/config.json`, is still read while the new file does not exist;
+the next `init` writes its boxes to the new file. Delete the old one then: it
+holds tokens.
 
 ```json
 {

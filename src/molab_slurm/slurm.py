@@ -26,7 +26,7 @@ HONOURED = {
     "export",
 }
 SHORT = {"-a": "array", "-J": "job-name", "-o": "output", "-e": "error", "-D": "chdir",
-         "-c": "cpus-per-task", "-t": "time", "-d": "dependency"}  # fmt: skip
+         "-c": "cpus-per-task", "-t": "time", "-d": "dependency", "-W": "wait"}  # fmt: skip
 FLAGS = {"exclusive", "requeue", "no-requeue", "parsable", "hold", "test-only", "wait"}
 
 

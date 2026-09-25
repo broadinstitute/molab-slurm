@@ -1,4 +1,4 @@
-"""Which box to talk to: named boxes in ~/.config/molab/config.json (mode 600).
+"""Which box to talk to: named boxes in ~/.config/molab-slurm/config.json (mode 600).
 
     molab-slurm init https://sb-....molab.run/ TOKEN --name gpu   # saved, and the default
     molab-slurm --box cpu squeue                                  # any other saved box
@@ -15,7 +15,9 @@ import json
 import os
 from pathlib import Path
 
-CONFIG = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "molab" / "config.json"
+_CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+CONFIG = _CONFIG_HOME / "molab-slurm" / "config.json"
+OLD_CONFIG = _CONFIG_HOME / "molab" / "config.json"  # the path before the rename: still read until a save writes CONFIG
 
 DEFAULTS = {
     "cpus": 4,  # the real slice; molab boxes report the host's count
@@ -29,12 +31,13 @@ class ConfigError(Exception):
 
 
 def load() -> dict:
-    if not CONFIG.exists():
+    path = CONFIG if CONFIG.exists() or not OLD_CONFIG.exists() else OLD_CONFIG
+    if not path.exists():
         return {"default": None, "boxes": {}}
     try:
-        cfg = json.loads(CONFIG.read_text())
+        cfg = json.loads(path.read_text())
     except ValueError as e:
-        raise ConfigError(f"{CONFIG} is not valid JSON: {e}") from e
+        raise ConfigError(f"{path} is not valid JSON: {e}") from e
     cfg.setdefault("boxes", {})
     cfg.setdefault("default", None)
     return cfg

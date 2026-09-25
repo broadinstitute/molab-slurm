@@ -91,9 +91,9 @@ Pitfalls:
 * **A bare `wait` returns 0** even when a step failed. Wait on each PID, as
   above, or the job reports `COMPLETED` over a broken environment.
 * Use `sbatch`, not `srun`, for a setup that takes more than a minute or so:
-  `srun` calls the box about every second until the job ends, and Ctrl-C on it
-  cancels the job. Check the setup job when it should be done rather than
-  following it with `tail -f`, which calls the box just as often.
+  `srun` calls the box every few seconds until the job ends, and Ctrl-C on it
+  cancels the job. Block on the setup job with `molab-slurm wait` rather than
+  following it with `tail -f`, which calls the box just as often as `srun`.
 * The box has none of your laptop's tools, credentials or environment
   variables. The bucket client and its login are part of the setup.
 * Jobs do not inherit the notebook's Python (see
@@ -363,8 +363,9 @@ Pitfalls:
 * `--parsable` prints only the id on stdout. Warnings, such as the
   `not enforced on molab, ignored: ...` line, go to stderr, prefixed `molab-slurm:`.
 * **Prefer `sbatch` to `srun` for anything long.** `srun` holds the command
-  open until the job ends, calling the box about every second, and can run
-  into an agent's own command timeout; `sbatch` returns at once and
+  open until the job ends, calling the box every few seconds, and can run
+  into an agent's own command timeout; `sbatch` returns at once,
+  `wait --after` sits out the run time without calling the box, and
   `tail -n 50` reads the latest output without pulling a whole log into the
   agent's context.
 * With `MOLAB_URL` and `MOLAB_TOKEN` the config file is not read: the box is

@@ -44,6 +44,7 @@ $ molab-slurm sbatch --parsable --dependency=afterok:13 --wrap 'bash summarize.s
 | `--export=SPEC` | `ALL` (default), `NONE`, plus `VAR=value` pairs |
 | `--wrap 'CMD'` | run a command instead of a script |
 | `--parsable` | print only the job id |
+| `-W, --wait` | don't return until the job ends, then exit with its code, checking every 4 minutes, like [`wait`](#wait) |
 | `--rc FILE` | *molab-slurm only.* source FILE on the box before the script (e.g. an `env.sh`) |
 | `--follow` | *molab-slurm only.* stream the (first) task's output after submitting; for short jobs only, like `srun` |
 | `--notebook-env` | *molab-slurm only.* keep the notebook kernel's Python on PATH — see [Batch scripts](batch-scripts.md#environment) |
@@ -80,9 +81,10 @@ NVIDIA RTX PRO 6000 Blackwell Server Edition, 83 %
 Every `srun` is a real job with an id, so `sacct` shows it afterwards.
 
 While it runs, `srun` checks the job and reads its output, two or more calls
-to the notebook kernel, about every second. Keep it for commands that finish
-within a minute or so, and submit anything longer with `sbatch`
-([For AI agents](ai-agents.md)).
+to the notebook kernel each time: every second at first, backing off to every
+10 seconds after about a minute. Keep it for commands that finish within a
+minute or so. Submit anything longer with `sbatch` and block on it with
+[`wait`](#wait) ([For AI agents](ai-agents.md)).
 
 ## squeue
 
@@ -143,10 +145,36 @@ Shows a task's output file (wherever `--output` put it). `-f` streams until
 the task ends and exits with its code. The job does not depend on it: if your
 laptop sleeps or the connection drops, the task keeps running, and `tail -f`
 run again streams the file from the beginning. Like `srun`, `-f` calls the
-box about every second while the task runs: keep it for short jobs, and check
-a long one with `-n` when it should be done. For an array job, `ID` alone means its first
+box every second at first and every 10 seconds after about a minute: keep it
+for short jobs, and for a long one use [`wait`](#wait), then `-n`. For an array job, `ID` alone means its first
 task. `-n` treats carriage returns as line breaks, so progress bars show
 their latest state instead of one enormous line.
+
+## wait
+
+```text
+molab-slurm wait [--after DURATION] [--every DURATION] [-q] ID | ID_INDEX
+```
+
+Waits until a job ends, then prints one line per task (`12 FAILED 3:0`) and
+exits with the first failed task's exit code, or 0. For an array job, `ID`
+means every task; `ID_INDEX` only that one.
+
+The waiting happens on your machine. Each check is **one** status call to the
+notebook kernel, made every `--every` (4 minutes by default, as often as
+`keepalive`; 60 seconds at least). `--after` holds off the first check, for
+example for the job's expected run time, and makes no calls meanwhile:
+
+```console
+$ molab-slurm sbatch --parsable train.sh
+12
+$ molab-slurm wait --after 2h 12 && molab-slurm tail -n 30 12
+12 COMPLETED 0:0
+...
+```
+
+Ctrl-C stops waiting and leaves the job running. `sbatch --wait` submits and
+then does the same.
 
 ## sinfo
 
@@ -179,7 +207,7 @@ molab-slurm open REMOTE [REMOTE...]   # fetch, then open with the OS viewer
 ```
 
 For small files (up to 64 MB), moved through the kernel API in 512 KB pieces.
-`open` caches under `~/.cache/molab/open/<box>/<remote path>`, so two
+`open` caches under `~/.cache/molab-slurm/open/<box>/<remote path>`, so two
 `plot.png` from different directories never collide, and opens PNGs and
 PDFs in Preview on macOS (`xdg-open` elsewhere). Move large files through a
 bucket instead.

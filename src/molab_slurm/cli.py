@@ -4,6 +4,7 @@
     molab-slurm sbatch --array=5-9 -D /marimo/repo slurm/train.sh
     molab-slurm squeue | molab-slurm sacct -j 12 | molab-slurm scancel 12_7 | molab-slurm tail -f 12_5
     molab-slurm srun -D /marimo/repo nvidia-smi
+    molab-slurm wait 12 && molab-slurm tail -n 30 12
     molab-slurm sinfo | molab-slurm put | molab-slurm get | molab-slurm open | molab-slurm keepalive
 
 See README.md / docs/ for the model: every verb is a short request to the
@@ -34,7 +35,10 @@ MAX_TRANSFER = 64 << 20  # put/get travel as base64 inside JSON: small files onl
 # (measured: 700 KB of data = 933 KB of base64 arrives, 768 KB does not), so
 # every transfer -- tail, get, put -- moves 512 KB at a time.
 CHUNK = 512 << 10
-POLL_S = 1.0
+# follow (srun, sbatch --follow, tail -f) checks every POLL_MIN_S at first, so a
+# short command still feels interactive, then backs off to POLL_MAX_S.
+POLL_MIN_S, POLL_MAX_S = 1.0, 10.0
+WAIT_EVERY_S = 240  # wait: one status call per check, as often as keepalive
 RUNNER_SRC = Path(__file__).with_name("runner.py").read_text()
 
 
@@ -201,15 +205,20 @@ def cmd_sbatch(ctx: Ctx, argv: list[str]) -> int:
         opts = slurm.merge(directives, cli)
     except ValueError as e:
         die(str(e), 2)
+    block = "wait" in opts.ignored  # sbatch --wait is `molab-slurm wait`, not ignored
+    opts.ignored.pop("wait", None)
     name = os.path.basename(script) if script else "wrap"
     spec = build_spec(ctx, opts, script=script, wrap=wrap, args=args, molab=molab, default_name=name)
     r = ctx.call(box.SUBMIT, root=ctx.box["root"], runner_src=RUNNER_SRC, spec=spec)
-    if "parsable" in cli or molab.get("parsable"):
+    parsable = "parsable" in cli or molab.get("parsable")
+    if parsable:
         print(r["id"])
     else:
         print(f"Submitted batch job {r['id']}")
     if molab.get("follow"):
         return follow(ctx, r["id"], opts.array.indices[0] if opts.array else None)
+    if block:
+        return wait(ctx, r["id"], None, WAIT_EVERY_S, quiet=bool(parsable))
     return 0
 
 
@@ -223,6 +232,8 @@ def cmd_srun(ctx: Ctx, argv: list[str]) -> int:
         die(str(e), 2)
     if opts.array is not None:
         die("srun: --array is an sbatch option", 2)
+    if "wait" in opts.ignored:  # srun's own -W/--wait takes seconds; it is not this
+        die("srun: -W/--wait is an sbatch option here; srun already waits", 2)
     spec = build_spec(
         ctx, opts, script=None, wrap=shlex.join(rest), args=[], molab=molab,
         default_name=os.path.basename(rest[0]),
@@ -235,7 +246,7 @@ def cmd_srun(ctx: Ctx, argv: list[str]) -> int:
 def follow(ctx: Ctx, jid: int, idx: int | None, cancel_on_interrupt: bool = False) -> int:
     """Stream one task's output until it ends; return its exit code (SLURM's rc)."""
     out = sys.stdout.buffer
-    offset, path = 0, None
+    offset, path, pause = 0, None, POLL_MIN_S
     try:
         while True:
             job = ctx.jobs(ids=[jid])[0]
@@ -255,14 +266,12 @@ def follow(ctx: Ctx, jid: int, idx: int | None, cancel_on_interrupt: bool = Fals
                     offset = r["offset"]
                     if len(data) < CHUNK:
                         break
-            state = task.get("state", "PENDING")
-            if state in FINAL:
-                if state not in ("COMPLETED",):
-                    warn(f"{task_label(job, task)} {state}" + (f" ({task['reason']})" if task.get("reason") not in (None, "None") else ""))
-                code = str(task.get("exit_code") or "1:0")
-                rc, sig = (int(x) for x in code.split(":"))
-                return rc if rc else (128 + sig if sig else (0 if state == "COMPLETED" else 1))
-            time.sleep(POLL_S)
+            if task.get("state", "PENDING") in FINAL:
+                if task["state"] != "COMPLETED":
+                    warn(_task_summary(job, task))
+                return task_rc(task)
+            time.sleep(pause)
+            pause = min(POLL_MAX_S, pause * 1.25)
     except KeyboardInterrupt:
         if cancel_on_interrupt:
             ctx.call(box.CANCEL, root=ctx.box["root"], targets=[[jid, idx]])
@@ -273,6 +282,70 @@ def follow(ctx: Ctx, jid: int, idx: int | None, cancel_on_interrupt: bool = Fals
     except RemoteError as e:
         warn(f"{e}\nmolab-slurm: job {jid} is still on the box; resume with `molab-slurm tail -f {jid}`")
         return 255
+
+
+def task_rc(task: dict) -> int:
+    """A finished task's exit code as SLURM reports it: the command's, 128+signal, or 1."""
+    code = str(task.get("exit_code") or "1:0")
+    rc, sig = (int(x) for x in code.split(":"))
+    return rc if rc else (128 + sig if sig else (0 if task.get("state") == "COMPLETED" else 1))
+
+
+def _task_summary(job: dict, task: dict) -> str:
+    reason = f" ({task['reason']})" if task.get("reason") not in (None, "None") else ""
+    return f"{task_label(job, task)} {task['state']}" + reason
+
+
+def wait(ctx: Ctx, jid: int, idx: int | None, every: float, quiet: bool = False) -> int:
+    """Block until a job (or one array task) ends, one status call per `every` seconds.
+
+    Returns the first failed task's exit code, else 0. The waiting is on this
+    machine: no request stays open on the box.
+    """
+    try:
+        while True:
+            job = ctx.jobs(ids=[jid])[0]
+            if job.get("missing"):
+                die(f"no job {jid}")
+            tasks = [t for t in job["tasks"] if idx is None or t["index"] == idx]
+            if not tasks:
+                die(f"job {jid} has no task {idx}")
+            if all(t.get("state", "PENDING") in FINAL for t in tasks):
+                codes = []
+                for t in tasks:
+                    if not quiet:
+                        print(f"{_task_summary(job, t)} {t.get('exit_code') or '0:0'}")
+                    codes.append(task_rc(t))
+                return next((c for c in codes if c), 0)
+            time.sleep(every)
+    except KeyboardInterrupt:
+        warn(f"stopped waiting; job {jid} keeps running")
+        return 130
+    except RemoteError as e:
+        warn(f"{e}\nmolab-slurm: job {jid} may still be on the box; check it with `molab-slurm sacct -j {jid}`")
+        return 255
+
+
+def cmd_wait(ctx: Ctx, argv: list[str]) -> int:
+    p = argparse.ArgumentParser(
+        prog="molab-slurm wait",
+        description="Wait until a job ends, checking its state once per interval; exit with its exit code.",
+    )
+    p.add_argument("job", help="N (every task of an array job) or N_I")
+    p.add_argument("--every", type=_duration, default=WAIT_EVERY_S,
+                   help=f"check interval: 300, 5m [{WAIT_EVERY_S}s]; at least 60s")  # fmt: skip
+    p.add_argument("--after", type=_duration, default=0,
+                   help="first check only after this long, e.g. the expected run time: 2h [0]")  # fmt: skip
+    p.add_argument("-q", "--quiet", action="store_true", help="print nothing, only exit with the job's code")
+    a = p.parse_args(argv)
+    if a.every < 60:
+        die("wait: --every must be at least 60s; each check is a call to the notebook kernel", 2)
+    jid, idx = parse_jobid(a.job)
+    try:
+        time.sleep(a.after)
+    except KeyboardInterrupt:
+        return 130
+    return wait(ctx, jid, idx, a.every, a.quiet)
 
 
 # ── squeue / sacct / scancel / tail ───────────────────────────────────────────
@@ -520,7 +593,7 @@ def cmd_open(ctx: Ctx, argv: list[str]) -> int:
     p.add_argument("remote", nargs="+")
     p.add_argument("--no-open", action="store_true", help="fetch into the cache only")
     a = p.parse_args(argv)
-    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "molab" / "open" / ctx.name
+    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "molab-slurm" / "open" / ctx.name
     for remote in a.remote:
         dst = cache / remote.lstrip("/")  # mirror the path: two d0_profile.png never collide
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -584,6 +657,7 @@ COMMANDS = {
     "sacct": ("finished and running jobs, with exit codes", cmd_sacct),
     "scancel": ("cancel jobs or array tasks", cmd_scancel),
     "sinfo": ("the box: CPUs, GPUs, disk, jobs", cmd_sinfo),
+    "wait": ("wait for a job to end; exit with its exit code", cmd_wait),
     "tail": ("a job's output file", cmd_tail),
     "put": ("copy a small file to the box", cmd_put),
     "get": ("copy a small file from the box", cmd_get),
