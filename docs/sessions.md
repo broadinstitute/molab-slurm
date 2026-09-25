@@ -29,7 +29,7 @@ software onto the box is specific to your project, so it belongs in a script
 in your project, run *through* molab-slurm like any other command:
 
 ```bash
-molab-slurm srun -D /marimo/myproject bash setup.sh
+molab-slurm sbatch -D /marimo/myproject setup.sh
 ```
 
 molab-slurm never refers to such scripts; it stays transport and
@@ -43,6 +43,10 @@ a new URL, keeping only part of `/marimo`. Everything else on it is gone,
 including the jobs molab-slurm was running and its state under
 `/marimo/.molab` (`squeue` on the old URL simply cannot connect).
 
+Sessions have also ended, with `HTTP 410` and no reason shown, while the box
+was being polled frequently. The cause is not confirmed; check jobs when they
+should be done, not in a loop ([For AI agents](ai-agents.md)).
+
 What to do:
 
 1. **Start or reopen the session yourself** in molab and copy the new connect snippet
@@ -51,7 +55,7 @@ What to do:
 3. `molab-slurm sinfo` — check the box, and **especially that the GPU is there**.
    A recreated session has come back without its GPU; nothing fails, GPU
    code just runs on the CPU, very slowly.
-4. Re-run your project's setup (`molab-slurm srun ...`), then resubmit your jobs.
+4. Re-run your project's setup (`molab-slurm sbatch ...`), then resubmit your jobs.
 
 How much work that costs depends on your project, not on molab-slurm:
 molab-slurm keeps no copy of anything off the box. Copy results somewhere
@@ -66,7 +70,8 @@ molab's idle policy is not documented. What helps, in order:
 * keep the notebook open in a browser tab on a machine that stays awake;
 * `molab-slurm keepalive --every 4m --for 8h` from a machine that stays online —
   it generates kernel API traffic, which may or may not be what molab's idle
-  timer counts.
+  timer counts. It is a call on a timer like any other: keep the default
+  interval or a longer one.
 
 Jobs themselves run detached on the box and do not need your laptop, but they
 cannot outlive the session.

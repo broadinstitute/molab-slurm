@@ -102,9 +102,9 @@ install_env() {
   pixi install
 }
 fetch_reference() {  # large: skipped if it is already on the box
-  [ -s data/genome.fa ] && return 0
-  curl -fsSL https://example.org/reference/genome.fa.gz | gunzip > data/genome.fa.part
-  mv data/genome.fa.part data/genome.fa
+  [ -s data/reference.dat ] && return 0
+  curl -fsSL https://example.org/reference.dat.gz | gunzip > data/reference.dat.part
+  mv data/reference.dat.part data/reference.dat
 }
 fetch_inputs() {
   gcloud storage cp -r "$BUCKET/inputs" data/
@@ -128,7 +128,8 @@ exit "$status"
 It uses `$BUCKET` and the pixi `PATH`, so it runs with `--rc ./env.sh` like
 every other job. To try it on its own, `molab-slurm srun -D /marimo/myproject --rc
 ./env.sh bash setup.sh` streams it to your terminal — but Ctrl-C there
-cancels it. A setup that takes a while belongs in `sbatch`, which step 6 does.
+cancels it, and `srun` calls the box about every second until it ends. A setup
+that takes more than a minute or so belongs in `sbatch`, which step 6 does.
 
 ## 4. Write the training array
 
@@ -155,7 +156,7 @@ fi
 
 out="results/fold_$fold"
 mkdir -p "$out"
-pixi run python train.py --fold "$fold" --genome data/genome.fa --inputs data/inputs --out "$out"
+pixi run python train.py --fold "$fold" --reference data/reference.dat --inputs data/inputs --out "$out"
 
 # Off the box as soon as it exists. The marker goes last, so a fold whose
 # upload was cut short does not count as done.
@@ -257,8 +258,11 @@ fetch_inputs: ok
 
 * setup's output is `logs/setup-2.out`, from `%x-%j`; task 0's is
   `logs/train_3_0.out`, from `%x_%A_%a`.
-* `molab-slurm tail -f 3_0` streams a training task; `molab-slurm tail -f 3` means the
-  array's first task.
+* `molab-slurm tail -n 20 3_0` shows the end of a training task's output;
+  `molab-slurm tail -n 20 3` means the array's first task. `tail -f` would
+  stream it, but it calls the box about every second for as long as the task
+  runs: check a training task when it should be done instead
+  ([For AI agents](../ai-agents.md)).
 * The patterns are SLURM's: `%A` array job id, `%a` task index, `%j` job id,
   `%x` job name. Here an array task has no id of its own, so `%j` is
   `3_0` for task 0 of job 3. Without `-o`, output goes to `slurm-%j.out`, or

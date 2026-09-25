@@ -73,7 +73,9 @@ exit $rc
 molab-slurm srun git clone https://github.com/my-org/myproject /marimo/myproject
 setup=$(molab-slurm sbatch --parsable -D /marimo/myproject setup.sh)
 molab-slurm sbatch -D /marimo/myproject --dependency=afterok:$setup train.sh
-molab-slurm tail -f $setup
+# later, when the setup should be done:
+molab-slurm sacct -j $setup
+molab-slurm tail -n 20 $setup
 ```
 
 Pitfalls:
@@ -88,9 +90,10 @@ Pitfalls:
   absolute path.
 * **A bare `wait` returns 0** even when a step failed. Wait on each PID, as
   above, or the job reports `COMPLETED` over a broken environment.
-* Use `sbatch`, not `srun`, for a setup that takes more than a few minutes:
-  Ctrl-C on `srun` cancels the job; Ctrl-C on `tail -f` only stops watching
-  it.
+* Use `sbatch`, not `srun`, for a setup that takes more than a minute or so:
+  `srun` calls the box about every second until the job ends, and Ctrl-C on it
+  cancels the job. Check the setup job when it should be done rather than
+  following it with `tail -f`, which calls the box just as often.
 * The box has none of your laptop's tools, credentials or environment
   variables. The bucket client and its login are part of the setup.
 * Jobs do not inherit the notebook's Python (see
@@ -247,9 +250,10 @@ Pitfalls:
   it expands on your laptop, which is what the loop wants; `SLURM_*` variables
   exist only on the box and need single quotes.
 * **Closing the laptop stops only what runs on the laptop.** The jobs and
-  their dependency waits are on the box. `molab-slurm tail -f` loses its connection;
-  run it again (it starts from the beginning of the file) or use
-  `molab-slurm tail -n 50`.
+  their dependency waits are on the box. Come back when a run should have
+  finished and check with `molab-slurm sacct` and `molab-slurm tail -n 50 ID`;
+  do not leave `tail -f` or `watch molab-slurm squeue` running on hour-long
+  jobs ([For AI agents](ai-agents.md)).
 * **The session is the limit, not the laptop.** molab's idle policy is not
   documented: keep the notebook open in a browser on a machine that stays
   awake, or run `molab-slurm keepalive` from one that stays online (see
@@ -260,8 +264,8 @@ Pitfalls:
 
 ## Recover from a session that died
 
-`molab-slurm squeue` says `cannot reach https://sb-...`, or `HTTP 403 listing
-sessions (wrong token?)`. The session has ended, and with it the jobs and
+`molab-slurm squeue` says `cannot reach https://sb-...`, or `HTTP 410 listing
+sessions` (or `403`). The session has ended, and with it the jobs and
 everything under `/marimo/.molab`.
 [Sessions and recovery](sessions.md#when-a-session-dies) has the steps; the
 short form:
@@ -310,23 +314,33 @@ Pitfalls:
 An agent or a CI-style script submits work, waits for it, and reads the
 result. Nothing in molab-slurm prompts, so it works unattended.
 
-This is also what makes it safe for an agent to keep checking on a long run.
-An agent that runs code directly in the notebook kernel (the marimo-pair way)
-shares that kernel with whatever else runs there, and marimo interrupts the
-kernel when one of its requests times out or disconnects: the long run stops.
-With molab-slurm the run is a job outside the kernel, and each check is a
-short call. See
-[How it works](how-it-works.md#why-work-never-runs-in-the-kernel).
+It also keeps a long run safe from the agent's own requests. An agent that
+runs code directly in the notebook kernel (the marimo-pair way) shares that
+kernel with whatever else runs there, and marimo interrupts the kernel when
+one of its requests times out or disconnects: the long run stops. With
+molab-slurm the run is a job outside the kernel, and each check is a short
+call. See [How it works](how-it-works.md#why-work-never-runs-in-the-kernel).
+
+Check rarely, though. Sessions have ended while the box was being polled (the
+cause is not confirmed), so submit, wait on your own machine for about as long
+as the job should take, and then check. [For AI agents](ai-agents.md) has the
+rules.
 
 ```bash
+set -euo pipefail                             # a dead session then stops the script instead of looking like success
 export MOLAB_URL=https://sb-0123456789abcdef.sb.molab.run/
 export MOLAB_TOKEN=...                        # rather than an argument to molab-slurm init, which ps can see
 jid=$(molab-slurm sbatch --parsable -D /marimo/myproject --wrap 'bash run.sh')
-molab-slurm tail -f "$jid" > run.log; rc=$?   # blocks until the task ends; rc is its exit code
+sleep 7200                                    # about the expected run time; waiting here does not touch the box
+while [ -n "$(molab-slurm sacct -j "$jid" -s PENDING,RUNNING | tail -n +2)" ]; do
+  sleep 1800                                  # not done yet: wait a good while before the next check
+done
+molab-slurm tail -n 50 "$jid"
 molab-slurm sacct -j "$jid" -s FAILED,TIMEOUT,OUT_OF_MEMORY,NODE_FAIL,CANCELLED | tail -n +2
 ```
 
-Any line from the last command is a task that did not complete.
+Once the loop ends every task has finished, and any line from the last command
+is a task that did not complete.
 
 | exit code | meaning |
 |---|---|
@@ -344,14 +358,15 @@ Pitfalls:
   runs of two or more spaces. `sacct` cuts `JobName` at 24 characters.
 * **An empty `squeue -j ID` does not mean finished.** A job that does not
   exist prints the same header-only table; check `sacct -j ID`.
-* `tail -f ID` on an array follows only its first task. For the whole array,
-  poll `squeue -j ID` until only the header is left, then read `sacct -j ID`.
+* `tail ID` on an array reads only its first task; `tail ID_INDEX` reads
+  another. `sacct -j ID` lists every task of the array with its state.
 * `--parsable` prints only the id on stdout. Warnings, such as the
   `not enforced on molab, ignored: ...` line, go to stderr, prefixed `molab-slurm:`.
 * **Prefer `sbatch` to `srun` for anything long.** `srun` holds the command
-  open until the job ends, which can run into an agent's own command timeout;
-  `sbatch` returns at once and `tail -n 50` reads the latest output without
-  pulling a whole log into the agent's context.
+  open until the job ends, calling the box about every second, and can run
+  into an agent's own command timeout; `sbatch` returns at once and
+  `tail -n 50` reads the latest output without pulling a whole log into the
+  agent's context.
 * With `MOLAB_URL` and `MOLAB_TOKEN` the config file is not read: the box is
   named `env`, with the defaults of 4 CPUs and `/marimo`. `--box NAME` still
   wins over them.

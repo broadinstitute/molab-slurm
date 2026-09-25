@@ -35,12 +35,16 @@ on the box.
   is copied over on every submit. Stdlib-only Python on both ends. (The optional
   `init_command()` notebook helper is the exception: it runs in the notebook.)
 * **Jobs outlive your laptop.** Everything runs detached on the box; the CLI
-  polls. Close the lid, come back, `molab-slurm tail -f 13_5`.
+  reads their state when you ask. Close the lid, come back, `molab-slurm tail -n 50 13_5`.
 * **Nothing long runs in the kernel.** marimo interrupts the kernel when an
   agent's request times out or disconnects, which stops whatever the kernel is
   running, such as a training loop in a cell. molab-slurm's calls are short snippets
-  and jobs run outside the kernel, so agents can poll while jobs keep running.
+  and jobs run outside the kernel, so checking on a job does not stop it.
   See [how it works](docs/how-it-works.md#why-work-never-runs-in-the-kernel).
+* **Check jobs, do not poll them.** Every call is still a request to the
+  notebook kernel, and sessions have ended while the box was polled (the cause
+  is not confirmed). Submit, wait, and check once when the job should be done;
+  agents should read [For AI agents](docs/ai-agents.md) first.
 * **Honest about what it is not.** `--mem`, `--gres`, `--partition` and the
   rest are accepted and reported as ignored — there is no scheduler to
   enforce them.
@@ -49,14 +53,16 @@ on the box.
 that is already running — `molab-slurm init` checks the URL and token and saves
 them, nothing more. It never starts, restarts or sets up a session; when one
 ends, open a new one in molab and `molab-slurm init` its new URL. Setting up the box
-for your project is your project's own script, run with `molab-slurm srun`. See
+for your project is your project's own script, run with `molab-slurm sbatch`. See
 [Sessions and recovery](docs/sessions.md).
 
 **Documentation: <https://broadinstitute.github.io/molab-slurm/>**
 
 Start with the [tutorials](https://broadinstitute.github.io/molab-slurm/tutorials/first-job.html);
 `init_command()`, the config file and exit codes are in the
-[Python API](https://broadinstitute.github.io/molab-slurm/api.html).
+[Python API](https://broadinstitute.github.io/molab-slurm/api.html). Agents and
+scripts that drive a box: read
+[For AI agents](https://broadinstitute.github.io/molab-slurm/ai-agents.html).
 
 ## Install
 

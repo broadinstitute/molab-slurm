@@ -11,15 +11,18 @@ session under the same name, check its GPU, set it up again, and resubmit so
 that only unfinished work runs. It continues [A small pipeline](pipeline.md).
 
 A session can end from idle shutdown, a crash, or running out of memory or
-disk. molab-slurm finds out the next time you run a command, which then fails
-to reach the box:
+disk. Sessions have also ended, with no reason shown, while the box was being
+polled frequently; the cause is not confirmed
+([For AI agents](../ai-agents.md)). molab-slurm finds out the next time you
+run a command, which then fails to reach the box:
 
 ```text
 molab-slurm: cannot reach https://sb-0123456789abcdef.sb.molab.run: ...
 ```
 
-or answers with an HTTP error listing sessions. Either way, that URL and
-token belong to a session that is gone ([Troubleshooting](../troubleshooting.md)).
+or answers with an HTTP error listing sessions (`HTTP 410`, or `403`). Either
+way, that URL and token belong to a session that is gone
+([Troubleshooting](../troubleshooting.md)).
 
 ## What is lost and what is kept
 
@@ -123,7 +126,7 @@ directory exists; update it instead with
 
 The rest of the setup — the environment, the reference download, the inputs
 from the bucket — is `setup.sh`, the first job `submit.sh` submits. On an
-empty box it does all of it again; on one that kept `data/genome.fa`, it
+empty box it does all of it again; on one that kept `data/reference.dat`, it
 skips that download.
 
 ## 5. Resubmit
@@ -188,7 +191,11 @@ costs the work that was running, plus the setup.
 * Keep the notebook open in a browser tab on a machine that stays awake.
   `molab-slurm keepalive --every 4m --for 8h` adds kernel API traffic, which may or
   may not be what molab's idle timer counts
-  ([Keeping a session alive](../sessions.md#keeping-a-session-alive)).
+  ([Keeping a session alive](../sessions.md#keeping-a-session-alive)); do not
+  make it more frequent than that.
+* Check on jobs when they should be done, not in a loop: no
+  `watch molab-slurm squeue`, and no `tail -f` left running on long jobs
+  ([For AI agents](../ai-agents.md)).
 * If the session died while two heavy jobs ran together, run them one at a
   time: `%1` within an array, `--dependency=afterany` between jobs
   ([A small pipeline](pipeline.md), step 9).

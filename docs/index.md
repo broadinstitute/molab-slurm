@@ -40,15 +40,17 @@ JobID  JobName   State      ExitCode  Elapsed  Start                End
 | `molab-slurm srun` | runs a command and streams its output; Ctrl-C cancels it; the exit code is the command's |
 | `molab-slurm squeue` / `sacct` | SLURM-shaped tables, including collapsed pending arrays |
 | `molab-slurm scancel` | cancels a job or one array task, and the whole process tree with it |
-| `molab-slurm tail -f` | streams a job's output file, resumable after your laptop sleeps |
+| `molab-slurm tail` | a job's output file: `-n N` for the end, `-f` to stream a short job |
 | `molab-slurm sinfo` | what the box really has — including whether the GPU is attached |
 | `molab-slurm put` / `get` / `open` | small files both ways; `open` shows a PNG or PDF in Preview |
 | `molab-slurm keepalive` | touches the kernel on a timer |
 
 Jobs run outside the notebook kernel. marimo interrupts the kernel when an agent's request times out or
 disconnects, and that would stop long work running *in* it, such as a training loop in a cell. molab-slurm's calls
-are short, so agents can check on jobs as often as they like. See
-[How it works](how-it-works.md#why-work-never-runs-in-the-kernel).
+are short, so checking on a job does not stop it. See
+[How it works](how-it-works.md#why-work-never-runs-in-the-kernel). Each call is still a request to the notebook
+kernel, though, and sessions have ended while the box was polled: check a job when it should be done, not in a
+loop ([For AI agents](ai-agents.md)).
 
 ## Where to start
 
@@ -62,7 +64,8 @@ are short, so agents can check on jobs as often as they like. See
 8. [How it works](how-it-works.md) — the kernel API, the runner, and why jobs survive your laptop.
 9. [Differences from SLURM](differences.md) — read this before relying on anything.
 10. [Troubleshooting](troubleshooting.md) and [related projects](related.md).
+11. [For AI agents](ai-agents.md) — rules for agents and scripts that drive a box: no polling, short streams, one check per job.
 
 molab-slurm connects to a session that is already running; it never starts,
 stops or sets one up. Starting a session is done in molab, by you; setting up
-the box for your project is your project's own script, run with `molab-slurm srun`.
+the box for your project is your project's own script, run with `molab-slurm sbatch`.

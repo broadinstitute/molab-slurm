@@ -49,8 +49,15 @@ molab-slurm keeps long work out of the kernel. A job is a separate process
 tree, started by the runner with `start_new_session=True`, so a kernel
 interrupt never reaches it. Every molab-slurm call is a short snippet that
 reads or writes files under `/marimo/.molab` and returns in about a second, so
-there is nothing long in the kernel to interrupt. Agents and people can poll
-`squeue`, `tail` and `sacct` as often as they like while jobs run.
+there is nothing long in the kernel to interrupt.
+
+That does not make calls free. Each one is still a request to the notebook
+server and an execution in the kernel, and sessions have ended while the box
+was being polled (`watch -n 10 molab-slurm squeue` plus an agent's loop); the
+cause is not confirmed. Check a job when it should be done instead of in a
+loop. `srun`, `sbatch --follow` and `tail -f` make two or more calls about
+every second while the job runs, so keep them to short commands. See
+[For AI agents](ai-agents.md).
 
 One thing still holds: molab-slurm's own calls go through the same kernel.
 A long-running **notebook cell** delays them, and a molab-slurm call that

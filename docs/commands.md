@@ -38,14 +38,14 @@ $ molab-slurm sbatch --parsable --dependency=afterok:13 --wrap 'bash summarize.s
 | `-D, --chdir=DIR` | working directory on the box (default: the box's `--workdir`) |
 | `-o, --output=PATTERN` | default `slurm-%j.out`, or `slurm-%A_%a.out` for arrays; relative to the working directory |
 | `-e, --error=PATTERN` | separate stderr file; by default stderr goes to the output file |
-| `-c, --cpus-per-task=N` | sets `SLURM_CPUS_PER_TASK`; capped at the box's CPU count, default all of them |
+| `-c, --cpus-per-task=N` | sets `SLURM_CPUS_PER_TASK`, and `OMP_NUM_THREADS` / `NUMBA_NUM_THREADS` unless already set; capped at the box's CPU count, default all of them |
 | `-t, --time=LIMIT` | walltime, any SLURM format (`30`, `2:00:00`, `1-12`); the task ends `TIMEOUT` |
 | `-d, --dependency=LIST` | `afterok:ID[:ID...]`, `afterany`, `afternotok`, `after`, comma-separated (AND) |
 | `--export=SPEC` | `ALL` (default), `NONE`, plus `VAR=value` pairs |
 | `--wrap 'CMD'` | run a command instead of a script |
 | `--parsable` | print only the job id |
 | `--rc FILE` | *molab-slurm only.* source FILE on the box before the script (e.g. an `env.sh`) |
-| `--follow` | *molab-slurm only.* stream the (first) task's output after submitting |
+| `--follow` | *molab-slurm only.* stream the (first) task's output after submitting; for short jobs only, like `srun` |
 | `--notebook-env` | *molab-slurm only.* keep the notebook kernel's Python on PATH — see [Batch scripts](batch-scripts.md#environment) |
 
 Anything else a script asks for — `--mem`, `--gres`, `--partition`,
@@ -78,6 +78,11 @@ NVIDIA RTX PRO 6000 Blackwell Server Edition, 83 %
 ```
 
 Every `srun` is a real job with an id, so `sacct` shows it afterwards.
+
+While it runs, `srun` checks the job and reads its output, two or more calls
+to the notebook kernel, about every second. Keep it for commands that finish
+within a minute or so, and submit anything longer with `sbatch`
+([For AI agents](ai-agents.md)).
 
 ## squeue
 
@@ -137,7 +142,9 @@ molab-slurm tail [-f] [-n N] ID | ID_INDEX
 Shows a task's output file (wherever `--output` put it). `-f` streams until
 the task ends and exits with its code. The job does not depend on it: if your
 laptop sleeps or the connection drops, the task keeps running, and `tail -f`
-run again streams the file from the beginning. For an array job, `ID` alone means its first
+run again streams the file from the beginning. Like `srun`, `-f` calls the
+box about every second while the task runs: keep it for short jobs, and check
+a long one with `-n` when it should be done. For an array job, `ID` alone means its first
 task. `-n` treats carriage returns as line breaks, so progress bars show
 their latest state instead of one enormous line.
 
@@ -173,7 +180,7 @@ molab-slurm open REMOTE [REMOTE...]   # fetch, then open with the OS viewer
 
 For small files (up to 64 MB), moved through the kernel API in 512 KB pieces.
 `open` caches under `~/.cache/molab/open/<box>/<remote path>`, so two
-`d0_profile.png` from different directories never collide, and opens PNGs and
+`plot.png` from different directories never collide, and opens PNGs and
 PDFs in Preview on macOS (`xdg-open` elsewhere). Move large files through a
 bucket instead.
 
@@ -183,9 +190,11 @@ bucket instead.
 molab-slurm keepalive [--every 4m] [--for 8h] [-q]
 ```
 
-Pings the kernel on a timer. **Whether molab's idle timer counts kernel API
-traffic is not documented** — this is the activity molab-slurm can generate,
-not a guarantee. Keeping the notebook open in a browser tab is the other half.
+Pings the kernel on a timer, every 4 minutes by default. **Whether molab's
+idle timer counts kernel API traffic is not documented** — this is the
+activity molab-slurm can generate, not a guarantee. Keeping the notebook open
+in a browser tab is the other half. Do not make `--every` shorter than the
+default: each ping is a call like any other ([For AI agents](ai-agents.md)).
 
 ## init, boxes
 

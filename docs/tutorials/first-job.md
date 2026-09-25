@@ -7,7 +7,7 @@ nav_order: 1
 # Your first job
 
 **Goal:** connect a molab GPU session to your laptop, run a command on it, run
-a five-minute batch job, watch it, and copy its result back.
+a one-minute batch job, watch it, and copy its result back.
 
 You need a molab account that can start GPU sessions, and Python ≥ 3.9 with
 [uv](https://docs.astral.sh/uv/) on your laptop.
@@ -174,7 +174,7 @@ A job you do not want to sit and watch goes through `sbatch`. `--wrap` runs a
 command line without a script:
 
 ```bash
-molab-slurm sbatch -J count --wrap 'for i in $(seq 1 60); do echo "step $i of 60"; sleep 5; done; nvidia-smi > gpu.txt'
+molab-slurm sbatch -J count --wrap 'for i in $(seq 1 12); do echo "step $i of 12"; sleep 5; done; nvidia-smi > gpu.txt'
 ```
 
 You should see:
@@ -200,7 +200,7 @@ You should see:
 
 ```text
 JOBID  PARTITION  NAME   USER  ST  TIME  NODES  NODELIST(REASON)
-3      molab      count  me    R   0:35  1      gpu
+3      molab      count  me    R   0:15  1      gpu
 ```
 
 `NODELIST` is the name you saved the box under, not its host name. With nothing pending or running, `squeue`
@@ -213,15 +213,23 @@ molab-slurm tail -f 3
 ```
 
 ```text
-step 1 of 60
-step 2 of 60
-step 3 of 60
+step 1 of 12
+step 2 of 12
+step 3 of 12
 ```
 
-`tail -f` returns when the job ends, with the job's exit code. Ctrl-C only
+`tail -f` returns when the job ends, with the job's exit code; if the job has
+already ended, it prints the whole output and returns at once. Ctrl-C only
 stops following — `molab-slurm: stopped following; job 3 keeps running` — and
 running it again streams the file from the beginning. `molab-slurm tail -n 5 3`
 prints the last five lines and returns.
+
+`tail -f`, like `srun`, asks the box for news about every second while the
+job runs. That is fine for this one-minute job. For a job that runs for hours,
+check it once when it should be done, with `molab-slurm sacct -j ID` and
+`molab-slurm tail -n 20 ID`, and do not leave `tail -f` or
+`watch molab-slurm squeue` running: sessions have ended while the box was
+polled like that ([For AI agents](../ai-agents.md)).
 
 When it has finished:
 
@@ -235,7 +243,7 @@ You should see all three jobs:
 JobID  JobName     State      ExitCode  Elapsed  Start                End
 1      pwd         COMPLETED  0:0       0:00     2026-09-24T10:02:11  2026-09-24T10:02:11
 2      nvidia-smi  COMPLETED  0:0       0:01     2026-09-24T10:02:40  2026-09-24T10:02:41
-3      count       COMPLETED  0:0       5:01     2026-09-24T10:03:05  2026-09-24T10:08:06
+3      count       COMPLETED  0:0       1:01     2026-09-24T10:03:05  2026-09-24T10:04:06
 ```
 
 `sacct` shows the newest 20 jobs, finished or not; `-j 3` picks one.
