@@ -29,6 +29,14 @@ class RemoteError(Exception):
     pass
 
 
+class UploadUnavailable(RemoteError):
+    """The server has no usable `POST /api/files/create` (an older marimo, or no edit rights)."""
+
+
+class UploadRetry(RemoteError):
+    """A part was refused as too large or lost on the way: send it again, smaller."""
+
+
 def _tls_context() -> ssl.SSLContext:
     """Verified TLS, even on a Python that ships no CA bundle.
 
@@ -135,3 +143,50 @@ class Remote:
             # The kernel API truncates a single reply at ~1 MB; a cut-off JSON
             # line is that, not a server bug. Callers chunk to stay under it.
             raise RemoteError(f"reply truncated after {len(line)} bytes (the kernel caps one reply at ~1 MB)") from e
+
+    def upload(self, directory: str, name: str, data: bytes, timeout: float = 120) -> str:
+        """Write `data` to a new file in `directory` on the box; return its path.
+
+        Goes through the notebook server's own file API (`POST /api/files/create`,
+        what its file browser uploads with), not the kernel: the bytes travel raw
+        and the server streams them to disk. It never overwrites -- a name that
+        exists becomes `name_1` -- so callers upload to a directory of their own
+        and use the path it returns. molab's proxy refuses a body of 100 MB with
+        413 (measured: 65 MB passes). `timeout` is per socket operation, not for
+        the whole upload.
+        """
+        boundary = "molab-slurm-" + os.urandom(12).hex()
+        head = b"".join(
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode()
+            for k, v in (("path", directory), ("type", "file"), ("name", name))
+        )
+        head += (
+            f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{name}"\r\n'
+            "Content-Type: application/octet-stream\r\n\r\n"
+        ).encode()
+        tail = f"\r\n--{boundary}--\r\n".encode()
+        headers = {
+            **self.headers,
+            # set both: urllib would otherwise send form-urlencoded, and chunked encoding
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Content-Length": str(len(head) + len(data) + len(tail)),
+        }
+        req = urllib.request.Request(
+            f"{self.base}/api/files/create", data=[head, data, tail], headers=headers, method="POST"
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=TLS) as r:
+                reply = json.load(r)
+        except urllib.error.HTTPError as e:
+            # 413 and 502+ come from the proxy (too large, timed out); anything
+            # else is marimo turning the request down.
+            if e.code == 413 or e.code > 500:
+                raise UploadRetry(f"HTTP {e.code} uploading {len(data) >> 20} MB") from e
+            raise UploadUnavailable(f"HTTP {e.code} from the server's file upload") from e
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            raise UploadRetry(f"lost the connection uploading {len(data) >> 20} MB: {e}") from e
+        except ValueError as e:
+            raise UploadUnavailable("the server's file upload did not answer in JSON") from e
+        if not reply.get("success"):
+            raise UploadUnavailable(f"the server's file upload refused it: {reply.get('message') or 'no reason'}")
+        return reply["info"]["path"]

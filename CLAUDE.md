@@ -21,7 +21,8 @@ Full rules and the reasons: `docs/ai-agents.md`. In short:
   `tail` of a growing log) and `molab-slurm sacct -j ID` if it failed.
 - One job per step, chained with `--dependency=afterok:ID` / `afterany:ID`; collect each step's results as
   soon as its job ends, and copy them off the box (a dead session takes everything on it).
-- Upload many files as one archive (`put` once, one call per 512 KB; unpack with one short `srun`).
+- Upload many files as one archive (`put` once: one upload and one short call per 48 MB; unpack with one
+  short `srun`). Data in the gigabytes goes through a bucket.
 - At most one `keepalive` or `wait` at a time, no more often than their default (every 4 minutes).
 - gVisor misreports resources: memory (`free` shows far more than the session has) and CPUs
   (`nproc` / `os.cpu_count()` give the host's count). Size thread pools and memory from the real numbers.

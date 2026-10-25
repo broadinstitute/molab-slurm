@@ -166,6 +166,53 @@ if _p["mode"] is not None:
 _reply({"path": os.path.abspath(dst)})
 '''
 
+# put, one part at a time: the part arrived through the server's file API (in
+# the staging directory); append it to a hidden file next to the destination,
+# checking its digest, and on the last part move that file into place. One
+# part per call keeps every call short.
+PUT_PART = r'''
+import hashlib, os, shutil
+dest = _p["dest"]
+if _p["first"]:
+    if os.path.isdir(dest):
+        dest = os.path.join(dest, _p["name"])
+    dest = os.path.abspath(dest)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+tmp = os.path.join(os.path.dirname(dest), "." + os.path.basename(dest) + ".molab-put")
+# room for the rest of the file (this part is already on the box)
+need = _p["size"] - os.path.getsize(_p["staged"]) if _p["first"] else 0
+if need and shutil.disk_usage(os.path.dirname(dest)).free < need:
+    _reply({"error": f"not enough space on the box for {_p['size'] >> 20} MB under {os.path.dirname(dest)}",
+            "tmp": None})
+else:
+    h = hashlib.sha256()
+    with open(_p["staged"], "rb") as src, open(tmp, "wb" if _p["first"] else "ab") as out:
+        for block in iter(lambda: src.read(1 << 20), b""):
+            h.update(block)
+            out.write(block)
+    os.unlink(_p["staged"])
+    got = os.path.getsize(tmp)
+    if h.hexdigest() != _p["sha256"]:
+        _reply({"error": f"the part at byte {_p['offset']} arrived damaged (sha256 differs)", "tmp": tmp})
+    elif _p["last"] and got != _p["size"]:
+        _reply({"error": f"{dest} came out {got} bytes, not {_p['size']}", "tmp": tmp})
+    else:
+        if _p["last"]:
+            os.chmod(tmp, _p["mode"])
+            os.replace(tmp, dest)
+            shutil.rmtree(_p["staging"], ignore_errors=True)
+        _reply({"dest": dest, "tmp": tmp, "bytes": got})
+'''
+
+# A put that failed part-way: remove what it left on the box.
+PUT_ABORT = r'''
+import os, shutil
+shutil.rmtree(_p["staging"], ignore_errors=True)
+if _p["tmp"] and os.path.exists(_p["tmp"]):
+    os.unlink(_p["tmp"])
+_reply({})
+'''
+
 GET = r'''
 import base64, os
 p = _p["path"]

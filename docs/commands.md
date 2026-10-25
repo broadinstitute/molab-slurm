@@ -206,11 +206,23 @@ molab-slurm get REMOTE [LOCAL]
 molab-slurm open REMOTE [REMOTE...]   # fetch, then open with the OS viewer
 ```
 
-For small files (up to 64 MB), moved through the kernel API in 512 KB pieces.
-`open` caches under `~/.cache/molab-slurm/open/<box>/<remote path>`, so two
-`plot.png` from different directories never collide, and opens PNGs and
-PDFs in Preview on macOS (`xdg-open` elsewhere). Move large files through a
-bucket instead.
+`put` takes a file of any size. Up to 512 KB it is one call through the
+kernel API. A larger file goes to the notebook server's own file upload (what
+its file browser uses), raw and outside the kernel, in parts of up to 48 MB:
+molab's proxy refuses a 100 MB request. One short kernel call per part checks
+its sha256 and appends it to a hidden file next to REMOTE, which replaces
+REMOTE only once the whole file is there. A part the proxy refuses or drops is
+sent again at half the size, and a `put` that fails or is interrupted removes
+what it sent and leaves REMOTE as it was. 150 MB took about 17 seconds
+(measured, at about 9 MB/s). On a server without that upload (an older
+marimo), `put` says so and uses the kernel API instead: 512 KB pieces, up to
+64 MB.
+
+`get` and `open` are for files up to 64 MB, moved through the kernel API in
+512 KB pieces. `open` caches under `~/.cache/molab-slurm/open/<box>/<remote path>`,
+so two `plot.png` from different directories never collide, and opens PNGs
+and PDFs in Preview on macOS (`xdg-open` elsewhere). Move large results, and
+data in the gigabytes, through a bucket instead.
 
 ## keepalive
 

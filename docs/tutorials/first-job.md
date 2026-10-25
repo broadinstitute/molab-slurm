@@ -267,9 +267,9 @@ slurm-3.out
 
 Give the path on the box in full. `molab-slurm open /marimo/plot.png` fetches a
 file and opens it (Preview on macOS), and `molab-slurm put LOCAL REMOTE` goes the
-other way. All three are for small files, up to 64 MB; larger results should
-leave the box through a bucket, copied by the job itself. The next tutorial
-does that.
+other way. `get` and `open` are for files up to 64 MB (`put` takes any size);
+larger results should leave the box through a bucket, copied by the job
+itself. The next tutorial does that.
 
 ## Next
 

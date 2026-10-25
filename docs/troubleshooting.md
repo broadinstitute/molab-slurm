@@ -15,6 +15,9 @@ nav_order: 11
 | `no active notebook session` | The notebook server is up but no notebook is open. Open it in a browser. |
 | `several sessions on this server` | More than one notebook is open on that server; pass `--session ID`. |
 | `reply truncated ... (the kernel caps one reply at ~1 MB)` | A reply exceeded the kernel API's limit. molab-slurm moves data in 512 KB pieces; if you see this, it is a bug — please report it. |
+| `put`: `HTTP 413 uploading N MB; sending it again in M MB parts` | molab's proxy refused a part as too large, or (`lost the connection ...`) dropped it. `put` sends it again at half the size by itself; a second failure on the same part stops the `put`, which removes what it sent. |
+| `put`: `... from the server's file upload; sending FILE through the kernel instead` | The notebook server has no usable file upload (an older marimo). `put` still works, through the kernel API, up to 64 MB; move larger files through a bucket. |
+| `put`: `the part at byte N arrived damaged (sha256 differs)` | A part changed on the way to the box. Nothing was written to the destination; run `put` again, and report it if it repeats. |
 | GPU code is extremely slow; `sinfo` says `gpus 0` | The session has no GPU attached — this happens when molab recreates a session. Restart it on a GPU machine. |
 | A job's Python imports the wrong packages | It inherited the notebook's venv. molab-slurm strips it by default; check you did not pass `--notebook-env`, and set the interpreter explicitly in `--rc`. |
 | A task shows `NODE_FAIL` | Its runner stopped heartbeating: the box restarted or the runner was killed. Resubmit. |

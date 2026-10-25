@@ -56,8 +56,9 @@ So:
    things got and each step's results can be collected as soon as its job
    ends.
 5. **Few calls to start.** Every command is at least one call, and `put` makes
-   one per 512 KB. Pack many small files into one archive, `put` it once and
-   unpack it with one short `srun`; move anything large through a bucket.
+   one upload and one call per 48 MB (one call up to 512 KB). Pack many small
+   files into one archive, `put` it once and unpack it with one short `srun`;
+   move data in the gigabytes through a bucket.
 6. **Copy results off the box as each job finishes.** A session can end at any
    time and cannot be brought back; whatever is only on the box is lost with
    it.

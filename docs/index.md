@@ -43,7 +43,7 @@ JobID  JobName   State      ExitCode  Elapsed  Start                End
 | `molab-slurm wait` | blocks until a job ends, one status call every 4 minutes, and exits with its code |
 | `molab-slurm tail` | a job's output file: `-n N` for the end, `-f` to stream a short job |
 | `molab-slurm sinfo` | what the box really has — including whether the GPU is attached |
-| `molab-slurm put` / `get` / `open` | small files both ways; `open` shows a PNG or PDF in Preview |
+| `molab-slurm put` / `get` / `open` | files both ways (`put` any size, `get` up to 64 MB); `open` shows a PNG or PDF in Preview |
 | `molab-slurm keepalive` | touches the kernel on a timer |
 
 Jobs run outside the notebook kernel. marimo interrupts the kernel when an agent's request times out or

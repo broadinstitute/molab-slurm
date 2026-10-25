@@ -27,8 +27,10 @@ code as text), one marked JSON line back.
 
 Requests are kept **short**: a request that runs for minutes has been seen
 to come back empty, and one reply is truncated at about 1 MB (measured).
-So nothing long ever happens inside a request, and files move in 512 KB
-pieces.
+So nothing long ever happens inside a request, and files read from the box
+move in 512 KB pieces. `put` sends a file over 512 KB to the notebook server's
+own file upload instead, in parts of up to 48 MB that never pass through the
+kernel, plus one short kernel call per part to check it and put it in place.
 
 ## Why work never runs in the kernel
 

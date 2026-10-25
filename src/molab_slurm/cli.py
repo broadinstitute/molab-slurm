@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import base64
 import getpass
+import hashlib
 import os
 import shlex
 import signal
@@ -25,16 +26,21 @@ import time
 from pathlib import Path
 
 from molab_slurm import __version__, box, config, slurm
-from molab_slurm.remote import Remote, RemoteError, snippet
+from molab_slurm.remote import Remote, RemoteError, UploadRetry, UploadUnavailable, snippet
 
 FINAL = {"COMPLETED", "FAILED", "CANCELLED", "TIMEOUT", "NODE_FAIL", "OUT_OF_MEMORY"}
 ST = {"PENDING": "PD", "RUNNING": "R", "COMPLETED": "CD", "FAILED": "F", "CANCELLED": "CA",
       "TIMEOUT": "TO", "NODE_FAIL": "NF", "OUT_OF_MEMORY": "OOM"}  # fmt: skip
-MAX_TRANSFER = 64 << 20  # put/get travel as base64 inside JSON: small files only
+MAX_TRANSFER = 64 << 20  # get, and put without the file API, travel as base64 inside JSON: small files only
 # Bytes per kernel reply. The kernel API cuts one stdout reply off at ~1 MB
 # (measured: 700 KB of data = 933 KB of base64 arrives, 768 KB does not), so
-# every transfer -- tail, get, put -- moves 512 KB at a time.
+# every transfer through the kernel -- tail, get, small puts -- moves 512 KB at a time.
 CHUNK = 512 << 10
+# put sends anything larger through the notebook server's file API, PART per
+# request: molab's proxy refuses 100 MB (HTTP 413) and passes 65 MB (measured),
+# and a part takes ~5 s at 10 MB/s. A part refused or lost is sent again at
+# half the size, down to PART_MIN.
+PART, PART_MIN = 48 << 20, 4 << 20
 # follow (srun, sbatch --follow, tail -f) checks every POLL_MIN_S at first, so a
 # short command still feels interactive, then backs off to POLL_MAX_S.
 POLL_MIN_S, POLL_MAX_S = 1.0, 10.0
@@ -530,16 +536,30 @@ def cmd_boxes(argv: list[str]) -> int:
 
 
 def cmd_put(ctx: Ctx, argv: list[str]) -> int:
-    p = argparse.ArgumentParser(prog="molab-slurm put", description="Copy a small local file to the box.")
+    p = argparse.ArgumentParser(prog="molab-slurm put", description="Copy a local file to the box.")
     p.add_argument("local")
     p.add_argument("remote", help="path, or an existing directory, on the box")
     a = p.parse_args(argv)
     src = Path(a.local)
     if not src.is_file():
         die(f"not a file: {src}")
+    if src.stat().st_size <= CHUNK:
+        print(_put_kernel(ctx, src, a.remote))
+        return 0
+    try:
+        print(_put_parts(ctx, src, a.remote))
+    except UploadUnavailable as e:
+        warn(f"{e}; sending {src.name} through the kernel instead")
+        print(_put_kernel(ctx, src, a.remote))
+    return 0
+
+
+def _put_kernel(ctx: Ctx, src: Path, dest: str) -> str:
+    """put through the kernel, base64 in the code, CHUNK per call: one call for a
+    small file, and the way in when the server has no file API."""
     if src.stat().st_size > MAX_TRANSFER:
         die(f"{src} is over {MAX_TRANSFER >> 20} MB; move big files through a bucket")
-    mode, chunk, dest, first = stat.S_IMODE(src.stat().st_mode), CHUNK, a.remote, True
+    mode, chunk, first = stat.S_IMODE(src.stat().st_mode), CHUNK, True
     with src.open("rb") as fh:
         while True:
             data = fh.read(chunk)
@@ -550,8 +570,56 @@ def cmd_put(ctx: Ctx, argv: list[str]) -> int:
             dest, first = r["path"], False  # later chunks append to the resolved path
             if len(data) < chunk:
                 break
-    print(dest)
-    return 0
+    return dest
+
+
+def _put_parts(ctx: Ctx, src: Path, dest: str) -> str:
+    """put through the notebook server's file API: up to PART raw bytes per upload,
+    each appended in place by one short kernel call (box.PUT_PART), so the kernel
+    never holds a transfer. Raises UploadUnavailable, with nothing written, when
+    the server has no usable file API; any other failure removes what was sent."""
+    st = src.stat()
+    size, mode = st.st_size, stat.S_IMODE(st.st_mode)
+    staging = f"{ctx.box['root']}/uploads/{os.urandom(8).hex()}"
+    part, offset, tmp, retried = PART, 0, None, False
+    remote = ctx.remote  # connect first: a dead session is one error, not a failed cleanup as well
+    try:
+        with src.open("rb") as fh:
+            while offset < size:
+                fh.seek(offset)
+                data = fh.read(min(part, size - offset))
+                try:
+                    staged = remote.upload(staging, f"{offset:012d}", data)
+                except UploadRetry as e:
+                    if retried:
+                        raise
+                    part, retried = max(part // 2, PART_MIN), True
+                    warn(f"{e}; sending it again in {part >> 20} MB parts")
+                    continue
+                r = ctx.call(box.PUT_PART, staged=staged, staging=staging, dest=dest, name=src.name,
+                             first=offset == 0, last=offset + len(data) == size, size=size, offset=offset,
+                             sha256=hashlib.sha256(data).hexdigest(), mode=mode)  # fmt: skip
+                tmp = r.get("tmp") or tmp
+                if "error" in r:
+                    raise RemoteError(r["error"])
+                dest, retried = r["dest"], False
+                offset += len(data)
+    except RemoteError as e:
+        if isinstance(e, UploadUnavailable) and offset == 0:
+            raise  # nothing sent yet: cmd_put goes through the kernel instead
+        _put_abort(ctx, staging, tmp)
+        die(f"{e}; {dest} is unchanged")
+    except KeyboardInterrupt:
+        _put_abort(ctx, staging, tmp)
+        die(f"put interrupted; {dest} is unchanged", 130)
+    return dest
+
+
+def _put_abort(ctx: Ctx, staging: str, tmp: str | None) -> None:
+    try:
+        ctx.call(box.PUT_ABORT, staging=staging, tmp=tmp)
+    except (RemoteError, KeyboardInterrupt) as e:
+        warn(f"could not remove the partial upload ({staging}" + (f", {tmp}" if tmp else "") + f"): {e}")
 
 
 def _get(ctx: Ctx, remote: str, dst: Path) -> Path:
@@ -659,7 +727,7 @@ COMMANDS = {
     "sinfo": ("the box: CPUs, GPUs, disk, jobs", cmd_sinfo),
     "wait": ("wait for a job to end; exit with its exit code", cmd_wait),
     "tail": ("a job's output file", cmd_tail),
-    "put": ("copy a small file to the box", cmd_put),
+    "put": ("copy a file to the box", cmd_put),
     "get": ("copy a small file from the box", cmd_get),
     "open": ("fetch a file and open it locally", cmd_open),
     "keepalive": ("ping the kernel on a timer", cmd_keepalive),
